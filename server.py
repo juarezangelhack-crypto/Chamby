@@ -1,14 +1,12 @@
 import hashlib
+import json
 import os
 import secrets
-import smtplib
 import sqlite3
 import time
+import urllib.error
 import urllib.request
-from email.message import EmailMessage
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs
-import json
 
 PORT = int(os.getenv("PORT", "4173"))
 DATA_DIR = os.getenv("DATA_DIR", os.path.dirname(__file__))
@@ -47,6 +45,12 @@ def init_db():
       code_hash TEXT NOT NULL,
       expires_at INTEGER NOT NULL,
       pending_json TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS firebase_pending_users (
+      firebase_id TEXT PRIMARY KEY,
+      email TEXT NOT NULL,
+      name TEXT NOT NULL,
+      district TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS sessions (
       token TEXT PRIMARY KEY,
@@ -95,53 +99,48 @@ def verify_password(password, stored):
     salt, expected = stored.split("$", 1)
     return secrets.compare_digest(hash_password(password, salt).split("$", 1)[1], expected)
 
-def send_email(to_email, code):
-    resend_key = os.getenv("RESEND_API_KEY")
-    if resend_key:
-        payload = json.dumps({
-            "from": os.getenv("RESEND_FROM", "EncuentraLab <onboarding@resend.dev>"),
-            "to": [to_email],
-            "subject": "Codigo de verificacion - EncuentraLab",
-            "html": f"""
-              <h2>Verifica tu cuenta</h2>
-              <p>Tu codigo de EncuentraLab es:</p>
-              <h1 style="letter-spacing:6px">{code}</h1>
-              <p>Caduca en 10 minutos.</p>
-            """
-        }).encode()
-        request = urllib.request.Request(
-            "https://api.resend.com/emails",
-            data=payload,
-            headers={
-                "Authorization": f"Bearer {resend_key}",
-                "Content-Type": "application/json"
-            },
-            method="POST"
-        )
-        with urllib.request.urlopen(request, timeout=15) as response:
-            if response.status >= 300:
-                raise RuntimeError("Resend rechazo el envio")
-        return True
-    host = os.getenv("SMTP_HOST")
-    if not host:
-        if os.getenv("RAILWAY_ENVIRONMENT"):
-            raise RuntimeError("No hay proveedor de correo configurado")
-        print(f"[VERIFICACIÓN DEMO] {to_email}: {code}")
-        return False
-    port = int(os.getenv("SMTP_PORT", "587"))
-    message = EmailMessage()
-    message["Subject"] = "Código de verificación - EncuentraLab"
-    message["From"] = os.getenv("SMTP_FROM", "no-reply@encuentralab.pe")
-    message["To"] = to_email
-    message.set_content(
-        f"Tu código de verificación de EncuentraLab es: {code}\n\n"
-        "Caduca en 10 minutos. Si no solicitaste esta cuenta, ignora este mensaje."
+class FirebaseError(Exception):
+    def __init__(self, code):
+        self.code = code
+
+def firebase_request(method, payload):
+    api_key = os.getenv("FIREBASE_API_KEY")
+    if not api_key:
+        raise FirebaseError("FIREBASE_NOT_CONFIGURED")
+    request = urllib.request.Request(
+        f"https://identitytoolkit.googleapis.com/v1/{method}?key={api_key}",
+        data=json.dumps(payload).encode(),
+        headers={"Content-Type": "application/json"},
+        method="POST"
     )
-    with smtplib.SMTP(host, port, timeout=15) as smtp:
-        smtp.starttls()
-        smtp.login(os.getenv("SMTP_USER"), os.getenv("SMTP_PASSWORD"))
-        smtp.send_message(message)
-    return True
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:
+            return json.loads(response.read())
+    except urllib.error.HTTPError as error:
+        try:
+            details = json.loads(error.read()).get("error", {}).get("message", "FIREBASE_ERROR")
+        except (json.JSONDecodeError, AttributeError):
+            details = "FIREBASE_ERROR"
+        raise FirebaseError(details) from error
+    except urllib.error.URLError as error:
+        raise FirebaseError("FIREBASE_UNAVAILABLE") from error
+
+def firebase_error_response(code):
+    if code == "EMAIL_EXISTS":
+        return 409, {"error": "Ya existe una cuenta con ese correo."}
+    if code in {"INVALID_LOGIN_CREDENTIALS", "EMAIL_NOT_FOUND", "INVALID_PASSWORD", "USER_DISABLED"}:
+        return 401, {"error": "Correo o contraseña incorrectos."}
+    if code.startswith("WEAK_PASSWORD"):
+        return 400, {"error": "La contraseña no cumple los requisitos de Firebase."}
+    if code in {"OPERATION_NOT_ALLOWED", "CONFIGURATION_NOT_FOUND"}:
+        return 503, {"error": "Activa Email/Contraseña en la configuración de autenticación de Firebase."}
+    if code in {"API_KEY_INVALID", "FIREBASE_NOT_CONFIGURED"}:
+        return 503, {"error": "Falta configurar la clave web de Firebase en Railway."}
+    if code == "INVALID_CONTINUE_URI":
+        return 503, {"error": "Agrega el dominio de Chamby a los dominios autorizados de Firebase."}
+    if code == "FIREBASE_UNAVAILABLE":
+        return 503, {"error": "No se pudo conectar con Firebase. Inténtalo de nuevo."}
+    return 400, {"error": "Firebase no pudo completar la solicitud. Revisa la configuración del proyecto."}
 
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
@@ -237,8 +236,6 @@ class Handler(SimpleHTTPRequestHandler):
     def do_POST(self):
         if self.path == "/api/register":
             self.register()
-        elif self.path == "/api/verify":
-            self.verify()
         elif self.path == "/api/login":
             self.login()
         elif self.path == "/api/logout":
@@ -274,79 +271,90 @@ class Handler(SimpleHTTPRequestHandler):
             self.respond(400, {"error": "Selecciona un distrito de Lima"})
             return
         con = db()
-        if con.execute("SELECT 1 FROM users WHERE email=?", (email,)).fetchone():
-            con.close()
+        existing = con.execute("SELECT 1 FROM users WHERE email=?", (email,)).fetchone()
+        con.close()
+        if existing:
             self.respond(409, {"error": "Ya existe una cuenta con este correo"})
             return
-        code = f"{secrets.randbelow(900000)+100000}"
-        pending = json.dumps({"name": name, "email": email, "district": district, "password_hash": hash_password(password)}, ensure_ascii=False)
-        con.execute(
-            "INSERT OR REPLACE INTO verification_codes(email,code_hash,expires_at,pending_json) VALUES(?,?,?,?)",
-            (email, hashlib.sha256(code.encode()).hexdigest(), int(time.time()) + 600, pending)
-        )
-        con.commit()
-        con.close()
         try:
-            sent = send_email(email, code)
-        except Exception as exc:
-            print(f"Error enviando codigo de verificacion: {type(exc).__name__}")
+            firebase_user = firebase_request("accounts:signUp", {
+                "email": email,
+                "password": password,
+                "returnSecureToken": True
+            })
+            firebase_id = firebase_user["localId"]
             con = db()
-            con.execute("DELETE FROM verification_codes WHERE email=?", (email,))
+            con.execute(
+                "INSERT OR REPLACE INTO firebase_pending_users(firebase_id,email,name,district) VALUES(?,?,?,?)",
+                (firebase_id, email, name, district)
+            )
             con.commit()
             con.close()
-            self.respond(503, {"error": "No se pudo enviar el correo. Verifica la configuración de correo e inténtalo de nuevo."})
+            firebase_request("accounts:sendOobCode", {
+                "requestType": "VERIFY_EMAIL",
+                "idToken": firebase_user["idToken"],
+                "continueUrl": os.getenv("PUBLIC_URL", "https://chamby-production.up.railway.app/?verified=1")
+            })
+        except FirebaseError as error:
+            print(f"Firebase registration error: {error.code}")
+            self.respond(*firebase_error_response(error.code))
             return
-        if not sent and os.getenv("RAILWAY_ENVIRONMENT"):
-            self.respond(503, {"error": "El servicio de correo no está configurado."})
+        except sqlite3.Error:
+            self.respond(500, {"error": "No se pudo guardar el perfil. Inténtalo de nuevo."})
             return
-        response = {"pending": True, "delivery": "email" if sent else "demo"}
-        if not sent:
-            response["demo_code"] = code
-        self.respond(200, response)
-
-    def verify(self):
-        data = self.json_body()
-        email = str(data.get("email", "")).strip().lower()
-        code = str(data.get("code", "")).strip()
-        con = db()
-        row = con.execute("SELECT * FROM verification_codes WHERE email=?", (email,)).fetchone()
-        if not row or row["expires_at"] < int(time.time()) or not secrets.compare_digest(row["code_hash"], hashlib.sha256(code.encode()).hexdigest()):
-            con.close()
-            self.respond(400, {"error": "Código incorrecto o vencido"})
-            return
-        pending = json.loads(row["pending_json"])
-        user_id = secrets.token_urlsafe(18)
-        con.execute(
-            "INSERT INTO users(id,name,email,district,password_hash,verified,created_at) VALUES(?,?,?,?,?,1,?)",
-            (user_id, pending["name"], pending["email"], pending["district"], pending["password_hash"], int(time.time()))
-        )
-        con.execute("DELETE FROM verification_codes WHERE email=?", (email,))
-        token = secrets.token_urlsafe(32)
-        con.execute("INSERT INTO sessions(token,user_id,expires_at) VALUES(?,?,?)",
-                    (token, user_id, int(time.time()) + 60 * 60 * 24 * 30))
-        con.commit()
-        con.close()
-        cookie = self.session_cookie(token, 60*60*24*30)
-        self.respond(200, {"user": {"id": user_id, "name": pending["name"], "email": email, "district": pending["district"]}}, cookie)
+        self.respond(200, {"pending": True, "message": "Revisa tu correo y confirma el enlace para activar tu cuenta."})
 
     def login(self):
         data = self.json_body()
         email = str(data.get("email", "")).strip().lower()
         password = str(data.get("password", ""))
-        con = db()
-        row = con.execute("SELECT * FROM users WHERE email=? AND verified=1", (email,)).fetchone()
-        if not row or not verify_password(password, row["password_hash"]):
-            con.close()
+        try:
+            firebase_user = firebase_request("accounts:signInWithPassword", {
+                "email": email,
+                "password": password,
+                "returnSecureToken": True
+            })
+            account = firebase_request("accounts:lookup", {"idToken": firebase_user["idToken"]})
+        except FirebaseError as error:
             time.sleep(0.25)
-            self.respond(401, {"error": "Correo o contraseña incorrectos"})
+            self.respond(*firebase_error_response(error.code))
             return
+
+        firebase_account = account.get("users", [{}])[0]
+        if not firebase_account.get("emailVerified"):
+            try:
+                firebase_request("accounts:sendOobCode", {
+                    "requestType": "VERIFY_EMAIL",
+                    "idToken": firebase_user["idToken"],
+                    "continueUrl": os.getenv("PUBLIC_URL", "https://chamby-production.up.railway.app/?verified=1")
+                })
+            except FirebaseError as error:
+                print(f"Firebase verification email error: {error.code}")
+            self.respond(403, {"error": "Confirma el enlace que enviamos a tu correo antes de iniciar sesión."})
+            return
+
+        firebase_id = firebase_user["localId"]
+        con = db()
+        profile = con.execute("SELECT * FROM firebase_pending_users WHERE firebase_id=?", (firebase_id,)).fetchone()
+        existing = con.execute("SELECT * FROM users WHERE id=?", (firebase_id,)).fetchone()
+        if not existing:
+            name = profile["name"] if profile else email.split("@", 1)[0]
+            district = profile["district"] if profile else ""
+            con.execute(
+                "INSERT INTO users(id,name,email,district,password_hash,verified,created_at) VALUES(?,?,?,?,?,?,?)",
+                (firebase_id, name, email, district, "firebase-managed", 1, int(time.time()))
+            )
+        else:
+            name = existing["name"]
+            district = existing["district"]
+        con.execute("DELETE FROM firebase_pending_users WHERE firebase_id=?", (firebase_id,))
         token = secrets.token_urlsafe(32)
         con.execute("INSERT INTO sessions(token,user_id,expires_at) VALUES(?,?,?)",
-                    (token, row["id"], int(time.time()) + 60 * 60 * 24 * 30))
+                    (token, firebase_id, int(time.time()) + 60 * 60 * 24 * 30))
         con.commit()
         con.close()
         cookie = self.session_cookie(token, 60*60*24*30)
-        self.respond(200, {"user": {"id": row["id"], "name": row["name"], "email": row["email"], "district": row["district"]}}, cookie)
+        self.respond(200, {"user": {"id": firebase_id, "name": name, "email": email, "district": district}}, cookie)
 
     def logout(self):
         token = self.cookie_token()

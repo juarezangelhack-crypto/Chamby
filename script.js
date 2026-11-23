@@ -369,7 +369,7 @@ function openAuth(action) {
       <button type="button" class="active" data-auth-tab="login">Entrar</button>
       <button type="button" data-auth-tab="register">Crear cuenta</button>
     </div>
-    <h2 id="auth-title">Accede a EncuentraLab</h2>
+    <h2 id="auth-title">Accede a Chamby</h2>
     <form id="auth-form" class="publish-form" style="padding:0;border:0">
       <div class="field auth-name-field" hidden><label for="auth-name">Nombre completo</label><input id="auth-name" maxlength="60"></div>
       <div class="field auth-district-field" hidden><label for="auth-district">Distrito de Lima</label><input id="auth-district" list="district-list"></div>
@@ -405,6 +405,7 @@ function openAuth(action) {
       write(STORAGE.current, currentUser);
       accountButton.textContent = currentUser.name.split(" ")[0];
       authDialog.close();
+      await loadServerJobs();
       showToast(`Bienvenido, ${currentUser.name}.`);
       return;
     }
@@ -420,29 +421,13 @@ function openAuth(action) {
     if (!response.ok) { showToast(result.error); return; }
 
     document.querySelector("#auth-content").innerHTML = `
-      <h2 id="auth-title">Verifica tu correo</h2>
-      <p>Enviamos un código de 6 dígitos a <strong>${esc(email)}</strong>. Caduca en 10 minutos.</p>
-      ${result.delivery === "demo" ? `<p><strong>Modo demostración:</strong> tu código es <b>${result.demo_code}</b>.</p>` : ""}
-      <form id="verify-form" class="publish-form" style="padding:0;border:0">
-        <div class="field"><label for="verify-code">Código de verificación</label><input id="verify-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required></div>
-        <button class="primary-button" type="submit">Verificar y crear cuenta</button>
-      </form>`;
-
-    document.querySelector("#verify-form").addEventListener("submit", async (verifyEvent) => {
-      verifyEvent.preventDefault();
-      const code = document.querySelector("#verify-code").value.trim();
-      const verifyResponse = await fetch("/api/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code })
-      });
-      const verifyResult = await verifyResponse.json();
-      if (!verifyResponse.ok) { showToast(verifyResult.error); return; }
-      currentUser = verifyResult.user;
-      write(STORAGE.current, currentUser);
-      accountButton.textContent = currentUser.name.split(" ")[0];
+      <h2 id="auth-title">Revisa tu correo</h2>
+      <p>${esc(result.message || "Firebase envió un enlace de verificación")} a <strong>${esc(email)}</strong>.</p>
+      <p>Abre el enlace para verificar tu cuenta. Luego vuelve aquí e inicia sesión.</p>
+      <button class="secondary-button" type="button" id="back-to-login">Volver a iniciar sesión</button>`;
+    document.querySelector("#back-to-login").addEventListener("click", () => {
       authDialog.close();
-      showToast("Correo verificado. Cuenta creada.");
+      openAuth("");
     });
   });
 }
@@ -532,3 +517,8 @@ loadServerJobs();
 loadServerMessages();
 renderJobs();
 renderConversations();
+
+if (new URLSearchParams(window.location.search).get("verified") === "1") {
+  history.replaceState(null, "", window.location.pathname);
+  showToast("Correo verificado. Ya puedes iniciar sesión.");
+}

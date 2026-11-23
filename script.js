@@ -148,19 +148,24 @@ document.querySelector("#job-grid").addEventListener("click", (event) => {
 function openJobDetail(jobId) {
   const job = jobs.find((item) => item.id === jobId);
   if (!job) return;
+  const isOwner = currentUser?.id === job.ownerId;
   document.querySelector("#job-dialog-content").innerHTML = `
     <p class="kicker">${job.type === "Rapido" ? "Trabajo rápido" : "Trabajo formal"} · ${esc(job.category)}</p>
     <h2 id="job-dialog-title">${esc(job.title)}</h2>
     <p><strong>${esc(job.ownerName)}</strong> · ${esc(job.city)}</p>
     <p>${esc(job.description)}</p>
     <p><strong>Pago:</strong> ${esc(job.pay)}<br><strong>Horario:</strong> ${esc(job.schedule)}</p>
-    <div class="dialog-actions">
-      <button class="primary-button" type="button" id="apply-job">Postularme</button>
-      <button class="secondary-button" type="button" id="chat-owner">Contactar</button>
-    </div>`;
+    ${isOwner
+      ? `<p class="owner-notice">Este es tu anuncio. No puedes postularte a tu propio trabajo.</p>`
+      : `<div class="dialog-actions">
+          <button class="primary-button" type="button" id="apply-job">Postularme</button>
+          <button class="secondary-button" type="button" id="chat-owner">Contactar</button>
+        </div>`}`;
   jobDialog.showModal();
-  document.querySelector("#apply-job").addEventListener("click", () => applyForJob(job.id));
-  document.querySelector("#chat-owner").addEventListener("click", () => openChatWith(job.ownerId, job.ownerName, job.id));
+  if (!isOwner) {
+    document.querySelector("#apply-job").addEventListener("click", () => applyForJob(job.id));
+    document.querySelector("#chat-owner").addEventListener("click", () => openChatWith(job.ownerId, job.ownerName, job.id));
+  }
 }
 
 async function applyForJob(jobId) {
@@ -172,8 +177,10 @@ async function applyForJob(jobId) {
   });
   const result = await response.json();
   if (!response.ok) { showToast(result.error); return; }
+  await Promise.all([loadServerApplications(), loadServerMessages()]);
   jobDialog.close();
   showToast("Postulación enviada. El anunciante recibió tu mensaje.");
+  renderMyJobs();
   renderConversations();
 }
 
@@ -230,20 +237,31 @@ function renderMyJobs() {
       <div><strong>${esc(job.title)}</strong><span>${esc(job.city)} · ${applicantText} · ${job.status}</span></div>
       ${job.status === "Abierto" ? `<button class="secondary-button accept-button" type="button" data-accept="${esc(job.id)}">Aceptar trabajo</button>` : ""}
       <button class="secondary-button" type="button" data-view-applications="${esc(job.id)}">Ver postulantes</button>
+      <button class="secondary-button delete-button" type="button" data-delete-job="${esc(job.id)}">Eliminar</button>
     </div>`;
   }).join("") : `<div class="empty-state"><p>Todavía no has publicado trabajos.</p></div>`;
 }
 function applicantTextCount(count) { return String(count); }
 
-document.querySelector("#my-job-list").addEventListener("click", (event) => {
+document.querySelector("#my-job-list").addEventListener("click", async (event) => {
+  const remove = event.target.closest("[data-delete-job]");
+  if (remove) {
+    await deleteJob(remove.dataset.deleteJob);
+    return;
+  }
   const accept = event.target.closest("[data-accept]");
   if (accept) acceptJob(accept.dataset.accept);
   const applicationsButton = event.target.closest("[data-view-applications]");
-  if (applicationsButton) showApplicants(applicationsButton.dataset.viewApplications);
+  if (applicationsButton) {
+    await loadServerApplications();
+    renderMyJobs();
+    showApplicants(applicationsButton.dataset.viewApplications);
+  }
 });
 
 async function acceptJob(jobId) {
   if (!confirm("¿Confirmas que este trabajo ya fue aceptado? Se notificará a todas las personas que se postularon.")) return;
+  const applicantCount = applications.filter((item) => item.jobId === jobId).length;
   const response = await fetch("/api/jobs/accept", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -251,10 +269,28 @@ async function acceptJob(jobId) {
   });
   const result = await response.json();
   if (!response.ok) { showToast(result.error); return; }
-  await loadServerJobs();
+  await Promise.all([loadServerJobs(), loadServerApplications(), loadServerMessages()]);
   renderJobs();
   renderMyJobs();
-  showToast(applicants.length ? "Trabajo tomado y postulantes notificados." : "El trabajo quedó marcado como tomado.");
+  showToast(applicantCount ? "Trabajo tomado y postulantes notificados." : "El trabajo quedó marcado como tomado.");
+}
+
+async function deleteJob(jobId) {
+  if (!confirm("¿Eliminar este anuncio? No aparecerá más en la lista de trabajos.")) return;
+  try {
+    const response = await fetch(`/api/jobs/${encodeURIComponent(jobId)}`, { method: "DELETE" });
+    const result = await response.json();
+    if (!response.ok) {
+      showToast(result.error);
+      return;
+    }
+    await loadServerJobs();
+    renderJobs();
+    renderMyJobs();
+    showToast("Anuncio eliminado.");
+  } catch {
+    showToast("No se pudo eliminar el anuncio. Inténtalo otra vez.");
+  }
 }
 
 function showApplicants(jobId) {
@@ -263,11 +299,12 @@ function showApplicants(jobId) {
   document.querySelector("#job-dialog-content").innerHTML = `
     <h2 id="job-dialog-title">Postulantes</h2>
     <p>${esc(job.title)}</p>
-    ${applicants.length ? applicants.map((item) => `<div class="my-job-row"><div><strong>${esc(item.applicantName)}</strong><span>${item.status}</span></div><button class="secondary-button" type="button" data-chat-applicant="${esc(item.applicantId)}" data-job="${esc(job.id)}">Abrir chat</button></div>`).join("") : `<div class="empty-state"><p>No hay postulaciones todavía.</p></div>`}`;
+    ${applicants.length ? applicants.map((item) => `<div class="my-job-row"><div><strong>${esc(item.applicantName)}</strong><span>${esc(item.applicantDistrict || "Distrito no registrado")} · ${esc(item.status)}</span></div><button class="secondary-button" type="button" data-chat-applicant="${esc(item.applicantId)}" data-job="${esc(job.id)}">Abrir chat</button></div>`).join("") : `<div class="empty-state"><p>No hay postulaciones todavía.</p></div>`}`;
   jobDialog.showModal();
   jobDialog.querySelectorAll("[data-chat-applicant]").forEach((button) => button.addEventListener("click", () => {
     jobDialog.close();
-    openChatWith(button.dataset.chatApplicant, button.textContent === "Abrir chat" ? applicants.find((item) => item.applicantId === button.dataset.chatApplicant).applicantName : "Usuario", button.dataset.job);
+    const applicant = applicants.find((item) => item.applicantId === button.dataset.chatApplicant);
+    openChatWith(button.dataset.chatApplicant, applicant?.applicantName || "Usuario", button.dataset.job);
   }));
 }
 
@@ -391,6 +428,30 @@ async function loadServerMessages() {
   } catch {}
 }
 
+async function loadServerApplications() {
+  if (!currentUser) return;
+  try {
+    const response = await fetch("/api/applications");
+    const result = await response.json();
+    if (!response.ok) {
+      showToast(result.error || "No se pudieron cargar las postulaciones.");
+      return;
+    }
+    applications = result.applications.map((application) => ({
+      id: application.id,
+      jobId: application.job_id,
+      applicantId: application.applicant_id,
+      applicantName: application.account_name || application.applicant_name,
+      applicantDistrict: application.account_district,
+      status: application.status,
+      at: application.created_at
+    }));
+    renderMyJobs();
+  } catch {
+    showToast("No se pudieron cargar las postulaciones. Inténtalo de nuevo.");
+  }
+}
+
 function openAuth(action) {
   let mode = action === "register" ? "register" : "login";
   document.querySelector("#auth-content").innerHTML = `
@@ -435,7 +496,7 @@ function openAuth(action) {
       write(STORAGE.current, currentUser);
       accountButton.textContent = currentUser.name.split(" ")[0];
       authDialog.close();
-      await loadServerJobs();
+      await Promise.all([loadServerJobs(), loadServerApplications(), loadServerMessages()]);
       switchView(action === "publish" ? "anunciar" : "dashboard");
       showToast(`Bienvenido, ${currentUser.name}.`);
       return;
@@ -535,6 +596,7 @@ async function restoreSecureSession() {
       currentUser = result.user;
       write(STORAGE.current, currentUser);
       accountButton.textContent = currentUser.name.split(" ")[0];
+      await Promise.all([loadServerApplications(), loadServerMessages()]);
       switchView("dashboard");
     } else {
       currentUser = null;

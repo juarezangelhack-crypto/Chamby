@@ -7,6 +7,7 @@ import time
 import urllib.error
 import urllib.request
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import unquote
 
 PORT = int(os.getenv("PORT", "4173"))
 DATA_DIR = os.getenv("DATA_DIR", os.path.dirname(__file__))
@@ -203,9 +204,10 @@ class Handler(SimpleHTTPRequestHandler):
                 return
             con = db()
             rows = con.execute(
-                "SELECT * FROM applications WHERE applicant_id=? "
-                "UNION SELECT * FROM applications WHERE job_id IN "
-                "(SELECT id FROM jobs WHERE owner_id=?)",
+                "SELECT a.*,u.name AS account_name,u.district AS account_district "
+                "FROM applications a JOIN users u ON u.id=a.applicant_id "
+                "WHERE a.applicant_id=? OR a.job_id IN "
+                "(SELECT id FROM jobs WHERE owner_id=?) ORDER BY a.created_at DESC",
                 (user["id"], user["id"])
             ).fetchall()
             con.close()
@@ -250,6 +252,13 @@ class Handler(SimpleHTTPRequestHandler):
             self.accept_job()
         else:
             self.respond(404, {"error": "Ruta no encontrada"})
+
+    def do_DELETE(self):
+        path = self.path.split("?", 1)[0]
+        if path.startswith("/api/jobs/"):
+            self.delete_job(unquote(path[len("/api/jobs/"):]))
+            return
+        self.respond(404, {"error": "Ruta no encontrada"})
 
     def register(self):
         data = self.json_body()
@@ -400,10 +409,19 @@ class Handler(SimpleHTTPRequestHandler):
         data = self.json_body()
         job_id = str(data.get("jobId", ""))
         con = db()
-        job = con.execute("SELECT * FROM jobs WHERE id=? AND status='Abierto'", (job_id,)).fetchone()
+        con.execute("BEGIN IMMEDIATE")
+        job = con.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
         if not job:
             con.close()
-            self.respond(404, {"error": "El trabajo ya no esta disponible"})
+            self.respond(404, {"error": "El trabajo no existe"})
+            return
+        if job["owner_id"] == user["id"]:
+            con.close()
+            self.respond(403, {"error": "No puedes postularte a tu propio anuncio"})
+            return
+        if job["status"] != "Abierto":
+            con.close()
+            self.respond(409, {"error": "El trabajo ya no esta disponible"})
             return
         existing = con.execute(
             "SELECT 1 FROM applications WHERE job_id=? AND applicant_id=?", (job_id, user["id"])
@@ -426,6 +444,36 @@ class Handler(SimpleHTTPRequestHandler):
         con.commit()
         con.close()
         self.respond(201, {"id": application_id, "conversationId": conversation_id})
+
+    def delete_job(self, job_id):
+        user = self.current_user()
+        if not user:
+            self.respond(401, {"error": "Sesion requerida"})
+            return
+        if not job_id:
+            self.respond(400, {"error": "Anuncio invalido"})
+            return
+        con = db()
+        con.execute("BEGIN IMMEDIATE")
+        job = con.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
+        if not job:
+            con.close()
+            self.respond(404, {"error": "El anuncio ya no existe"})
+            return
+        if job["owner_id"] != user["id"]:
+            con.close()
+            self.respond(403, {"error": "Solo quien publicó el anuncio puede borrarlo"})
+            return
+        has_applicants = con.execute("SELECT 1 FROM applications WHERE job_id=? LIMIT 1", (job_id,)).fetchone()
+        if has_applicants:
+            con.close()
+            self.respond(409, {"error": "No se puede borrar un anuncio con postulantes. Puedes marcarlo como tomado."})
+            return
+        con.execute("DELETE FROM messages WHERE conversation_id LIKE ?", (f"{job_id}:%",))
+        con.execute("DELETE FROM jobs WHERE id=? AND owner_id=?", (job_id, user["id"]))
+        con.commit()
+        con.close()
+        self.respond(200, {"ok": True})
 
     def create_message(self):
         user = self.current_user()

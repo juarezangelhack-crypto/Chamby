@@ -111,11 +111,14 @@ h2 { margin: 0; font-size: clamp(1.7rem, 4vw, 2.5rem); }
 .field input, .field select, .field textarea { width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 7px; background: white; }
 .field textarea { resize: vertical; }
 .my-jobs { margin-top: 34px; }
-.my-job-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 10px; margin-bottom: 10px; padding: 14px; background: white; border: 1px solid var(--line); border-radius: 9px; }
+.my-job-row { display: grid; grid-template-columns: minmax(0,1fr) repeat(3,auto); align-items: center; gap: 10px; margin-bottom: 10px; padding: 14px; background: white; border: 1px solid var(--line); border-radius: 9px; }
 .my-job-row strong, .my-job-row span { display: block; }
 .my-job-row span { color: var(--muted); font-size: .88rem; }
 .accept-button { border-color: var(--green); color: var(--green); }
 .accept-button:hover { background: var(--green); }
+.delete-button { border-color: #b33939; color: #a52e2e; }
+.delete-button:hover { background: #a52e2e; }
+.owner-notice { margin-top: 20px; padding: 12px 14px; color: var(--navy); background: #edf3f6; border-radius: 8px; }
 
 .messages-heading { margin-bottom: 20px; }
 .messenger { min-height: 520px; display: grid; grid-template-columns: 280px 1fr; overflow: hidden; background: white; border: 1px solid var(--line); border-radius: 12px; }

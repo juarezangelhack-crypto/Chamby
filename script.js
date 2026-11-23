@@ -23,6 +23,8 @@ let messages = read(STORAGE.messages, []);
 let currentUser = read(STORAGE.current, null);
 let selectedType = null;
 let activeConversation = null;
+let messageStream = null;
+let messageUpdateVersion = 0;
 
 const views = document.querySelectorAll(".view");
 const navLinks = document.querySelectorAll(".nav-link");
@@ -375,6 +377,12 @@ function renderConversations() {
     if (last && last.senderId !== currentUser?.id && last.senderId !== "system") unread.add(id);
     return { id, jobId, otherId, otherName: conversationPeerName(id), jobTitle: job?.title || chatMessages[0]?.jobTitle || "Trabajo", last };
   }).filter((item) => item.otherId);
+  if (activeConversation && !conversations.some((item) => item.id === activeConversation)) {
+    activeConversation = null;
+  }
+  if (!activeConversation && conversations.length === 1) {
+    activeConversation = conversations[0].id;
+  }
 
   conversationList.innerHTML = conversations.length ? conversations.map((item) => `
     <button type="button" class="conversation-item ${activeConversation === item.id ? "active" : ""}" data-conversation="${esc(item.id)}">
@@ -446,10 +454,12 @@ document.querySelector("#chat-form").addEventListener("submit", async (event) =>
 
 async function loadServerMessages() {
   if (!currentUser) return false;
+  const requestVersion = ++messageUpdateVersion;
   try {
     const response = await fetch("/api/messages");
     if (!response.ok) return false;
     const result = await response.json();
+    if (requestVersion !== messageUpdateVersion) return false;
     messages = result.messages.map((message) => ({
       conversationId: message.conversation_id,
       senderId: message.sender_id,
@@ -468,6 +478,35 @@ async function loadServerMessages() {
     }
     return false;
   }
+}
+
+function connectMessageStream() {
+  if (!currentUser || !window.EventSource) return;
+  if (messageStream) messageStream.close();
+  const stream = new EventSource("/api/messages/stream");
+  messageStream = stream;
+  stream.onmessage = (event) => {
+    if (messageStream !== stream) return;
+    try {
+      const result = JSON.parse(event.data);
+      messageUpdateVersion += 1;
+      messages = result.messages.map((message) => ({
+        conversationId: message.conversation_id,
+        senderId: message.sender_id,
+        text: message.text,
+        at: message.created_at,
+        senderName: message.sender_name,
+        jobTitle: message.job_title,
+        ownerId: message.owner_id,
+        ownerName: message.owner_name
+      }));
+      renderConversations();
+    } catch {
+      stream.close();
+      messageStream = null;
+      showToast("No se pudieron actualizar los mensajes en tiempo real.");
+    }
+  };
 }
 
 async function loadServerApplications() {
@@ -539,6 +578,7 @@ function openAuth(action) {
       accountButton.textContent = currentUser.name.split(" ")[0];
       authDialog.close();
       await Promise.all([loadServerJobs(), loadServerApplications(), loadServerMessages()]);
+      connectMessageStream();
       switchView(action === "publish" ? "anunciar" : "dashboard");
       showToast(`Bienvenido, ${currentUser.name}.`);
       return;
@@ -578,6 +618,10 @@ function openUserMenu() {
   authDialog.showModal();
   document.querySelector("#logout-button").addEventListener("click", async () => {
     await fetch("/api/logout", { method: "POST" });
+    if (messageStream) {
+      messageStream.close();
+      messageStream = null;
+    }
     currentUser = null;
     write(STORAGE.current, null);
     activeConversation = null;
@@ -639,6 +683,7 @@ async function restoreSecureSession() {
       write(STORAGE.current, currentUser);
       accountButton.textContent = currentUser.name.split(" ")[0];
       await Promise.all([loadServerApplications(), loadServerMessages()]);
+      connectMessageStream();
       switchView("dashboard");
     } else {
       currentUser = null;

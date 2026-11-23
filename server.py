@@ -144,6 +144,8 @@ def firebase_error_response(code):
     return 400, {"error": "Firebase no pudo completar la solicitud. Revisa la configuración del proyecto."}
 
 class Handler(SimpleHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=os.path.dirname(__file__), **kwargs)
 
@@ -186,10 +188,70 @@ class Handler(SimpleHTTPRequestHandler):
         con.close()
         return dict(row) if row else None
 
+    def messages_for_user(self, user):
+        con = db()
+        rows = con.execute(
+            "SELECT m.*,j.title AS job_title,j.owner_id,j.owner_name,"
+            "u.name AS sender_name,u.district AS sender_district "
+            "FROM messages m "
+            "JOIN jobs j ON j.id=substr(m.conversation_id,1,instr(m.conversation_id,':')-1) "
+            "LEFT JOIN users u ON u.id=m.sender_id "
+            "WHERE j.owner_id=? OR instr(':'||m.conversation_id||':',':'||?||':')>0 "
+            "ORDER BY m.created_at ASC",
+            (user["id"], user["id"])
+        ).fetchall()
+        con.close()
+        messages = []
+        for row in rows:
+            parts = row["conversation_id"].split(":")
+            if len(parts) != 3 or len(set(parts[1:])) != 2:
+                continue
+            if user["id"] in parts[1:] and row["owner_id"] in parts[1:]:
+                messages.append(dict(row))
+        return messages
+
+    def stream_messages(self):
+        user = self.current_user()
+        if not user:
+            self.respond(401, {"error": "Sesion requerida"})
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache, no-transform")
+        self.send_header("Connection", "keep-alive")
+        self.send_header("Transfer-Encoding", "chunked")
+        self.send_header("X-Accel-Buffering", "no")
+        self.end_headers()
+
+        def send_chunk(content):
+            self.wfile.write(f"{len(content):X}\r\n".encode("ascii") + content + b"\r\n")
+            self.wfile.flush()
+
+        last_message_ids = None
+        last_heartbeat = time.monotonic()
+        try:
+            while True:
+                messages = self.messages_for_user(user)
+                message_ids = tuple(message["id"] for message in messages)
+                if message_ids != last_message_ids:
+                    event = json.dumps({"messages": messages}, ensure_ascii=False).encode("utf-8")
+                    send_chunk(b"data: " + event + b"\n\n")
+                    last_message_ids = message_ids
+                    last_heartbeat = time.monotonic()
+                elif time.monotonic() - last_heartbeat >= 15:
+                    send_chunk(b": keep-alive\n\n")
+                    last_heartbeat = time.monotonic()
+                time.sleep(1)
+        except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
+            self.close_connection = True
+
     def do_GET(self):
         if self.path == "/api/session":
             user = self.current_user()
             self.respond(200 if user else 401, {"user": user})
+            return
+        if self.path == "/api/messages/stream":
+            self.stream_messages()
             return
         if self.path == "/api/jobs":
             con = db()
@@ -218,26 +280,7 @@ class Handler(SimpleHTTPRequestHandler):
             if not user:
                 self.respond(401, {"error": "Sesion requerida"})
                 return
-            con = db()
-            rows = con.execute(
-                "SELECT m.*,j.title AS job_title,j.owner_id,j.owner_name,"
-                "u.name AS sender_name,u.district AS sender_district "
-                "FROM messages m "
-                "JOIN jobs j ON j.id=substr(m.conversation_id,1,instr(m.conversation_id,':')-1) "
-                "LEFT JOIN users u ON u.id=m.sender_id "
-                "WHERE j.owner_id=? OR instr(':'||m.conversation_id||':',':'||?||':')>0 "
-                "ORDER BY m.created_at ASC",
-                (user["id"], user["id"])
-            ).fetchall()
-            con.close()
-            messages = []
-            for row in rows:
-                parts = row["conversation_id"].split(":")
-                if len(parts) != 3 or len(set(parts[1:])) != 2:
-                    continue
-                if user["id"] in parts[1:] and row["owner_id"] in parts[1:]:
-                    messages.append(dict(row))
-            self.respond(200, {"messages": messages})
+            self.respond(200, {"messages": self.messages_for_user(user)})
             return
         if self.path.startswith("/api/"):
             self.respond(404, {"error": "Ruta no encontrada"})

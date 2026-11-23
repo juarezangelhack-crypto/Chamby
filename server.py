@@ -124,6 +124,8 @@ def send_email(to_email, code):
         return True
     host = os.getenv("SMTP_HOST")
     if not host:
+        if os.getenv("RAILWAY_ENVIRONMENT"):
+            raise RuntimeError("No hay proveedor de correo configurado")
         print(f"[VERIFICACIÓN DEMO] {to_email}: {code}")
         return False
     port = int(os.getenv("SMTP_PORT", "587"))
@@ -284,7 +286,19 @@ class Handler(SimpleHTTPRequestHandler):
         )
         con.commit()
         con.close()
-        sent = send_email(email, code)
+        try:
+            sent = send_email(email, code)
+        except Exception as exc:
+            print(f"Error enviando codigo de verificacion: {type(exc).__name__}")
+            con = db()
+            con.execute("DELETE FROM verification_codes WHERE email=?", (email,))
+            con.commit()
+            con.close()
+            self.respond(503, {"error": "No se pudo enviar el correo. Verifica la configuración de correo e inténtalo de nuevo."})
+            return
+        if not sent and os.getenv("RAILWAY_ENVIRONMENT"):
+            self.respond(503, {"error": "El servicio de correo no está configurado."})
+            return
         response = {"pending": True, "delivery": "email" if sent else "demo"}
         if not sent:
             response["demo_code"] = code

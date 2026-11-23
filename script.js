@@ -546,15 +546,52 @@ function openAuth(action) {
       <div class="field auth-district-field" ${mode === "login" ? "hidden" : ""}><label for="auth-district">Distrito de Lima</label><input id="auth-district" list="district-list"></div>
       <div class="field"><label for="auth-email">Correo electrónico</label><input id="auth-email" type="email" autocomplete="email" required></div>
       <div class="field"><label for="auth-password">Contraseña</label><input id="auth-password" type="password" autocomplete="${mode === "register" ? "new-password" : "current-password"}" minlength="10" required></div>
+      <button class="auth-recovery" id="forgot-password" type="button" ${mode === "register" ? "hidden" : ""}>¿Olvidaste tu contraseña?</button>
+      <p class="auth-feedback" id="auth-feedback" role="status" aria-live="polite" hidden></p>
       <button class="primary-button" id="auth-submit" type="submit">${mode === "register" ? "Crear cuenta" : action === "publish" ? "Continuar" : "Iniciar sesión"}</button>
     </form>`;
   authDialog.showModal();
+
+  const recoveryButton = document.querySelector("#forgot-password");
+  const authFeedback = document.querySelector("#auth-feedback");
+  recoveryButton.addEventListener("click", async () => {
+    const emailInput = document.querySelector("#auth-email");
+    const email = emailInput.value.trim().toLowerCase();
+    if (!email || !emailInput.checkValidity()) {
+      emailInput.reportValidity();
+      return;
+    }
+    recoveryButton.disabled = true;
+    recoveryButton.textContent = "Enviando enlace...";
+    authFeedback.hidden = true;
+    try {
+      const response = await fetch("/api/password-reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      });
+      const result = await response.json();
+      authFeedback.textContent = result.message || result.error || "No se pudo enviar el enlace.";
+      authFeedback.classList.toggle("error", !response.ok);
+      authFeedback.hidden = false;
+    } catch {
+      authFeedback.textContent = "No se pudo enviar el enlace. Revisa tu conexión e inténtalo de nuevo.";
+      authFeedback.classList.add("error");
+      authFeedback.hidden = false;
+    } finally {
+      recoveryButton.disabled = false;
+      recoveryButton.textContent = "¿Olvidaste tu contraseña?";
+    }
+  });
 
   document.querySelectorAll("[data-auth-tab]").forEach((button) => button.addEventListener("click", () => {
     mode = button.dataset.authTab;
     document.querySelectorAll("[data-auth-tab]").forEach((item) => item.classList.toggle("active", item === button));
     document.querySelector(".auth-name-field").hidden = mode !== "register";
     document.querySelector(".auth-district-field").hidden = mode !== "register";
+    recoveryButton.hidden = mode !== "login";
+    authFeedback.hidden = true;
+    authFeedback.classList.remove("error");
     document.querySelector("#auth-password").autocomplete = mode === "register" ? "new-password" : "current-password";
     document.querySelector("#auth-title").textContent = mode === "register" ? "Crea tu cuenta en Chambly" : "Accede a Chambly";
     document.querySelector("#auth-submit").textContent = mode === "register" ? "Crear cuenta" : action === "publish" ? "Continuar" : "Iniciar sesión";

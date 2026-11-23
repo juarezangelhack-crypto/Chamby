@@ -292,6 +292,8 @@ class Handler(SimpleHTTPRequestHandler):
             self.register()
         elif self.path == "/api/login":
             self.login()
+        elif self.path == "/api/password-reset":
+            self.password_reset()
         elif self.path == "/api/logout":
             self.logout()
         elif self.path == "/api/jobs":
@@ -416,6 +418,31 @@ class Handler(SimpleHTTPRequestHandler):
         con.close()
         cookie = self.session_cookie(token, 60*60*24*30)
         self.respond(200, {"user": {"id": firebase_id, "name": name, "email": email, "district": district}}, cookie)
+
+    def password_reset(self):
+        email = str(self.json_body().get("email", "")).strip().lower()
+        if len(email) > 254 or "@" not in email or "." not in email.rsplit("@", 1)[-1]:
+            self.respond(400, {"error": "Escribe un correo electrónico válido."})
+            return
+        try:
+            firebase_request("accounts:sendOobCode", {
+                "requestType": "PASSWORD_RESET",
+                "email": email
+            })
+        except FirebaseError as error:
+            if error.code == "EMAIL_NOT_FOUND":
+                pass
+            elif error.code == "TOO_MANY_ATTEMPTS_TRY_LATER":
+                self.respond(429, {"error": "Se solicitaron demasiados enlaces. Espera un momento e inténtalo de nuevo."})
+                return
+            else:
+                print(f"Firebase password reset error: {error.code}")
+                self.respond(*firebase_error_response(error.code))
+                return
+        self.respond(200, {
+            "ok": True,
+            "message": "Si el correo está registrado, recibirás un enlace para restablecer tu contraseña."
+        })
 
     def logout(self):
         token = self.cookie_token()

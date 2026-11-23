@@ -151,6 +151,11 @@ dialog::backdrop { background: rgba(23,34,45,.68); }
 .auth-tabs { display: flex; gap: 6px; margin-bottom: 18px; }
 .auth-tabs button { min-height: 40px; padding-inline: 12px; border: 0; border-radius: 6px; background: #edf3f6; font-weight: 900; cursor: pointer; }
 .auth-tabs button.active { color: white; background: var(--navy); }
+.auth-recovery { display: block; margin: -4px 0 16px auto; padding: 4px; border: 0; color: var(--blue-dark); background: transparent; text-decoration: underline; cursor: pointer; }
+.auth-recovery:disabled { opacity: .65; cursor: wait; }
+.auth-feedback { margin: 0 0 14px; padding: 10px 12px; border-radius: 7px; color: var(--navy); background: #edf3f6; }
+.auth-feedback.error { color: #842029; background: #f8d7da; }
+.auth-feedback[hidden] { display: none; }
 .dialog-actions { display: flex; gap: 9px; margin-top: 20px; }
 .dialog-actions button { flex: 1; }
 .toast { position: fixed; z-index: 60; right: 20px; bottom: 20px; max-width: 340px; padding: 13px 17px; color: white; background: var(--navy); border-radius: 8px; box-shadow: var(--shadow); opacity: 0; transform: translateY(12px); pointer-events: none; transition: .18s; }

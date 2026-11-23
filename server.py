@@ -220,15 +220,24 @@ class Handler(SimpleHTTPRequestHandler):
                 return
             con = db()
             rows = con.execute(
-                "SELECT m.* FROM messages m "
+                "SELECT m.*,j.title AS job_title,j.owner_id,j.owner_name,"
+                "u.name AS sender_name,u.district AS sender_district "
+                "FROM messages m "
                 "JOIN jobs j ON j.id=substr(m.conversation_id,1,instr(m.conversation_id,':')-1) "
-                "LEFT JOIN applications a ON a.job_id=j.id "
-                "WHERE j.owner_id=? OR a.applicant_id=? "
-                "GROUP BY m.id ORDER BY m.created_at ASC",
+                "LEFT JOIN users u ON u.id=m.sender_id "
+                "WHERE j.owner_id=? OR instr(':'||m.conversation_id||':',':'||?||':')>0 "
+                "ORDER BY m.created_at ASC",
                 (user["id"], user["id"])
             ).fetchall()
             con.close()
-            self.respond(200, {"messages": [dict(row) for row in rows]})
+            messages = []
+            for row in rows:
+                parts = row["conversation_id"].split(":")
+                if len(parts) != 3 or len(set(parts[1:])) != 2:
+                    continue
+                if user["id"] in parts[1:] and row["owner_id"] in parts[1:]:
+                    messages.append(dict(row))
+            self.respond(200, {"messages": messages})
             return
         if self.path.startswith("/api/"):
             self.respond(404, {"error": "Ruta no encontrada"})
@@ -483,10 +492,39 @@ class Handler(SimpleHTTPRequestHandler):
         data = self.json_body()
         conversation_id = str(data.get("conversationId", "")).strip()
         text = str(data.get("text", "")).strip()
-        if not conversation_id or not text:
+        if not conversation_id or not text or len(text) > 2000:
             self.respond(400, {"error": "Mensaje invalido"})
             return
+        parts = conversation_id.split(":")
+        if len(parts) != 3 or not all(parts):
+            self.respond(400, {"error": "Conversacion invalida"})
+            return
+        job_id, first_user_id, second_user_id = parts
         con = db()
+        job = con.execute("SELECT id,owner_id FROM jobs WHERE id=?", (job_id,)).fetchone()
+        if not job:
+            con.close()
+            self.respond(404, {"error": "El trabajo de esta conversacion ya no existe"})
+            return
+        participants = sorted((first_user_id, second_user_id))
+        if len(set(participants)) != 2 or user["id"] not in participants or job["owner_id"] not in participants:
+            con.close()
+            self.respond(403, {"error": "No tienes acceso a esta conversacion"})
+            return
+        peer_id = next(participant for participant in participants if participant != user["id"])
+        if user["id"] == job["owner_id"]:
+            has_application = con.execute(
+                "SELECT 1 FROM applications WHERE job_id=? AND applicant_id=?",
+                (job_id, peer_id)
+            ).fetchone()
+            has_conversation = con.execute(
+                "SELECT 1 FROM messages WHERE conversation_id=? LIMIT 1",
+                (conversation_id,)
+            ).fetchone()
+            if not has_application and not has_conversation:
+                con.close()
+                self.respond(403, {"error": "Solo puedes iniciar un chat con una persona postulada"})
+                return
         con.execute(
             "INSERT INTO messages(id,conversation_id,sender_id,text,created_at) VALUES(?,?,?,?,?)",
             (secrets.token_urlsafe(12), conversation_id, user["id"], text, int(time.time()))

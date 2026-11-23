@@ -311,24 +311,53 @@ function showApplicants(jobId) {
 function conversationIdFor(firstId, secondId, jobId) {
   return `${jobId}:${[firstId, secondId].sort().join(":")}`;
 }
-function ensureConversation(personId, personName, jobId, jobTitle) {
-  const conversations = read("encuentralab_conversations", []);
-  const id = conversationIdFor(currentUser?.id || personId, personId === currentUser?.id ? jobId : personId, jobId);
-  // Conversations are derived from applications and messages, so no separate storage is required.
-  return id;
-}
-
-function openChatWith(personId, personName, jobId) {
+async function openChatWith(personId, personName, jobId) {
   if (!requireUser("chatear")) return;
   const job = jobs.find((item) => item.id === jobId);
-  activeConversation = conversationIdFor(currentUser.id, personId, jobId);
-  if (!messages.some((item) => item.conversationId === activeConversation)) {
-    messages.push({ conversationId: activeConversation, senderId: currentUser.id, text: `Hola, me interesa hablar sobre "${job?.title || "esta oportunidad"}".`, at: Date.now() });
+  if (!job || !personId || personId === currentUser.id) {
+    showToast("No se pudo abrir esta conversación.");
+    return;
   }
-  save();
+  activeConversation = conversationIdFor(currentUser.id, personId, jobId);
   jobDialog.close();
   switchView("mensajes");
+  if (!await loadServerMessages()) {
+    showToast("No se pudo cargar el chat. Inicia sesión de nuevo e inténtalo.");
+    return;
+  }
+  if (!messages.some((item) => item.conversationId === activeConversation)) {
+    try {
+      const response = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversationId: activeConversation,
+          text: `Hola, me interesa hablar sobre "${job.title}".`
+        })
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        showToast(result.error || "No se pudo iniciar la conversación.");
+        return;
+      }
+    } catch {
+      showToast("No se pudo iniciar la conversación. Revisa tu conexión e inténtalo de nuevo.");
+      return;
+    }
+  }
+  await loadServerMessages();
   renderConversations();
+}
+
+function conversationPeerName(conversationId) {
+  const [jobId, ...participantIds] = conversationId.split(":");
+  const otherId = participantIds.find((item) => item !== currentUser?.id);
+  const job = jobs.find((item) => item.id === jobId);
+  const application = applications.find((item) => item.applicantId === otherId && item.jobId === jobId);
+  const peerMessage = messages.find((item) => item.conversationId === conversationId
+    && item.senderId === otherId && item.senderName);
+  return application?.applicantName || peerMessage?.senderName
+    || (otherId === job?.ownerId ? job?.ownerName : null) || "Usuario";
 }
 
 function renderConversations() {
@@ -341,16 +370,10 @@ function renderConversations() {
     const ids = parts.slice(1);
     const otherId = ids.find((item) => item !== currentUser?.id);
     const job = jobs.find((item) => item.id === jobId);
-    let otherName = "Usuario";
-    if (otherId) {
-      const application = applications.find((item) => item.applicantId === otherId && item.jobId === jobId);
-      const owner = users.find((item) => item.id === otherId);
-      otherName = application?.applicantName || owner?.name || job?.ownerName || "Usuario";
-    }
     const chatMessages = messages.filter((item) => item.conversationId === id);
     const last = chatMessages[chatMessages.length - 1];
     if (last && last.senderId !== currentUser?.id && last.senderId !== "system") unread.add(id);
-    return { id, jobId, otherId, otherName, jobTitle: job?.title || "Trabajo", last };
+    return { id, jobId, otherId, otherName: conversationPeerName(id), jobTitle: job?.title || chatMessages[0]?.jobTitle || "Trabajo", last };
   }).filter((item) => item.otherId);
 
   conversationList.innerHTML = conversations.length ? conversations.map((item) => `
@@ -380,13 +403,10 @@ function renderChat(conversationId) {
   const chatMessages = messages.filter((item) => item.conversationId === conversationId);
   const parts = conversationId.split(":");
   const job = jobs.find((item) => item.id === parts[0]);
-  const otherId = parts.slice(1).find((item) => item !== currentUser?.id);
-  const application = applications.find((item) => item.applicantId === otherId && item.jobId === job?.id);
-  const otherUser = users.find((item) => item.id === otherId);
   document.querySelector("#chat-empty").hidden = true;
   document.querySelector("#chat-active").hidden = false;
-  document.querySelector("#chat-name").textContent = application?.applicantName || otherUser?.name || job?.ownerName || "Usuario";
-  document.querySelector("#chat-job").textContent = job?.title || "Trabajo";
+  document.querySelector("#chat-name").textContent = conversationPeerName(conversationId);
+  document.querySelector("#chat-job").textContent = job?.title || chatMessages[0]?.jobTitle || "Trabajo";
   document.querySelector("#chat-messages").innerHTML = chatMessages.length ? chatMessages.map((item) => `
     <div class="message ${item.senderId === currentUser?.id ? "mine" : ""}">
       ${esc(item.text)}
@@ -398,34 +418,56 @@ function renderChat(conversationId) {
 document.querySelector("#chat-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const input = document.querySelector("#chat-input");
+  const submitButton = event.currentTarget.querySelector('button[type="submit"]');
   const text = input.value.trim();
-  if (!text || !activeConversation) return;
-  const response = await fetch("/api/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ conversationId: activeConversation, text })
-  });
-  if (!response.ok) { showToast("No se pudo enviar el mensaje."); return; }
-  await loadServerMessages();
-  input.value = "";
-  renderConversations();
-  renderChat(activeConversation);
+  if (!text || !activeConversation || !currentUser || submitButton.disabled) return;
+  submitButton.disabled = true;
+  try {
+    const response = await fetch("/api/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversationId: activeConversation, text })
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      showToast(result.error || "No se pudo enviar el mensaje.");
+      return;
+    }
+    input.value = "";
+    await loadServerMessages();
+    renderConversations();
+    renderChat(activeConversation);
+  } catch {
+    showToast("No se pudo enviar el mensaje. Revisa tu conexión e inténtalo de nuevo.");
+  } finally {
+    submitButton.disabled = false;
+  }
 });
 
 async function loadServerMessages() {
-  if (!currentUser) return;
+  if (!currentUser) return false;
   try {
     const response = await fetch("/api/messages");
-    if (!response.ok) return;
+    if (!response.ok) return false;
     const result = await response.json();
     messages = result.messages.map((message) => ({
       conversationId: message.conversation_id,
       senderId: message.sender_id,
       text: message.text,
-      at: message.created_at
+      at: message.created_at,
+      senderName: message.sender_name,
+      jobTitle: message.job_title,
+      ownerId: message.owner_id,
+      ownerName: message.owner_name
     }));
     renderConversations();
-  } catch {}
+    return true;
+  } catch {
+    if (document.querySelector("#mensajes-view").classList.contains("active")) {
+      showToast("No se pudieron actualizar los mensajes. Revisa tu conexión.");
+    }
+    return false;
+  }
 }
 
 async function loadServerApplications() {
@@ -619,6 +661,12 @@ loadServerJobs();
 loadServerMessages();
 renderJobs();
 renderConversations();
+window.setInterval(() => {
+  if (currentUser && !document.hidden) loadServerMessages();
+}, 5000);
+document.addEventListener("visibilitychange", () => {
+  if (currentUser && !document.hidden) loadServerMessages();
+});
 
 if (new URLSearchParams(window.location.search).get("verified") === "1") {
   history.replaceState(null, "", window.location.pathname);

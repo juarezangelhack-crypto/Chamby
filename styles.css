@@ -26,13 +26,9 @@ button, a, input, select, textarea { outline-offset: 3px; }
 
 .header { display: none; position: sticky; top: 0; z-index: 30; background: rgba(255,255,255,.97); border-bottom: 1px solid var(--line); }
 body.authenticated .header { display: block; }
-.header-inner { min-height: 74px; display: flex; align-items: center; gap: 28px; }
+.header-inner { min-height: 74px; display: flex; align-items: center; justify-content: space-between; gap: 28px; }
 .brand { display: flex; align-items: center; gap: 10px; border: 0; color: var(--navy); background: transparent; font-weight: 900; font-size: 1.12rem; cursor: pointer; }
 .brand-image { width: 145px; height: auto; display: block; border-radius: 8px; }
-.desktop-nav { display: flex; align-items: center; gap: 6px; margin-left: auto; }
-.nav-link { min-height: 44px; padding: 8px 12px; border: 0; border-radius: 7px; color: var(--muted); background: transparent; font-weight: 800; cursor: pointer; }
-.nav-link:hover, .nav-link.active { color: var(--navy); background: #edf3f6; }
-.badge { display: inline-grid; min-width: 20px; height: 20px; margin-left: 4px; place-items: center; color: white; background: #bc4b43; border-radius: 999px; font-size: .75rem; }
 .account-button { min-height: 44px; padding: 8px 16px; border: 1px solid var(--navy); border-radius: 7px; color: var(--navy); background: white; font-weight: 900; cursor: pointer; }
 .account-button:hover { color: white; background: var(--navy); }
 
@@ -58,6 +54,9 @@ body.authenticated .header { display: block; }
 .choice-title { font-size: clamp(1.35rem, 3vw, 1.7rem); font-weight: 900; line-height: 1.2; }
 .choice-illustration { width: min(190px, 90%); display: block; transition: transform .18s ease; }
 .choice-illustration svg { width: 100%; height: auto; overflow: visible; }
+.welcome-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; padding: 18px 0 30px; }
+.welcome-actions .secondary-button { color: white; background: transparent; border-color: rgba(255,255,255,.75); }
+.welcome-actions .secondary-button:hover { color: var(--navy); background: white; }
 .choice-caption { font-size: clamp(1.15rem, 2.8vw, 1.6rem); line-height: 1.25; }
 .kicker { margin: 0 0 7px; color: var(--green); font-size: .78rem; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; }
 h1, h2 { line-height: 1.12; }
@@ -165,8 +164,6 @@ dialog::backdrop { background: rgba(23,34,45,.68); }
   .container { width: calc(100% - 28px); }
   .header-inner { min-height: 0; display: grid; grid-template-columns: 1fr auto; gap: 6px 8px; padding-block: 8px; }
   .brand-image { width: 108px; }
-  .desktop-nav { grid-column: 1 / -1; width: 100%; justify-content: space-around; margin: 0; }
-  .nav-link { min-height: 42px; flex: 1; padding: 5px 3px; font-size: .76rem; border-radius: 5px; }
   .account-button { min-width: 60px; padding-inline: 8px; }
   .entry-login { margin-top: 40px; }
   .entry-content > p { max-width: 500px; }

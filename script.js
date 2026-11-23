@@ -28,7 +28,6 @@ let messageStream = null;
 let messageUpdateVersion = 0;
 
 const views = document.querySelectorAll(".view");
-const navLinks = document.querySelectorAll(".nav-link");
 const accountButton = document.querySelector("#account-button");
 const authDialog = document.querySelector("#auth-dialog");
 const jobDialog = document.querySelector("#job-dialog");
@@ -58,7 +57,6 @@ function requireUser(action) {
 function switchView(name) {
   document.body.classList.toggle("authenticated", Boolean(currentUser));
   views.forEach((view) => view.classList.toggle("active", view.id === `${name}-view`));
-  navLinks.forEach((link) => link.classList.toggle("active", link.dataset.view === name));
   window.scrollTo({ top: 0, behavior: "smooth" });
   if (name === "buscar") loadServerJobs(true);
   if (name === "mensajes") renderConversations();
@@ -403,7 +401,6 @@ function conversationPeerName(conversationId) {
 }
 
 function renderConversations() {
-  const unread = new Set();
   const conversationIds = [...new Set(messages.map((item) => item.conversationId))];
   const conversationList = document.querySelector("#conversation-list");
   const conversations = conversationIds.map((id) => {
@@ -414,7 +411,6 @@ function renderConversations() {
     const job = jobs.find((item) => item.id === jobId);
     const chatMessages = messages.filter((item) => item.conversationId === id);
     const last = chatMessages[chatMessages.length - 1];
-    if (last && last.senderId !== currentUser?.id && last.senderId !== "system") unread.add(id);
     return { id, jobId, otherId, otherName: conversationPeerName(id), jobTitle: job?.title || chatMessages[0]?.jobTitle || "Trabajo", last };
   }).filter((item) => item.otherId);
   if (activeConversation && !conversations.some((item) => item.id === activeConversation)) {
@@ -429,9 +425,6 @@ function renderConversations() {
       <strong>${esc(item.otherName)}</strong>
       <span>${esc(item.jobTitle)}</span>
     </button>`).join("") : `<div class="empty-state"><p>Tus conversaciones aparecerán aquí.</p></div>`;
-  const badge = document.querySelector("#message-badge");
-  badge.hidden = unread.size === 0;
-  badge.textContent = unread.size;
   if (activeConversation) renderChat(activeConversation);
   else {
     document.querySelector("#chat-empty").hidden = false;
@@ -743,15 +736,6 @@ async function loadServerJobs(silent = false) {
   } catch {
     if (!silent) showToast("No se pudieron cargar los trabajos. Revisa tu conexión e inténtalo de nuevo.");
   }
-}
-
-function announceNewApplication() { updateMessageBadge(); }
-function updateMessageBadge() {
-  if (!currentUser) return;
-  const relevant = messages.filter((item) => item.conversationId.includes(currentUser.id) && item.senderId !== currentUser.id);
-  const badge = document.querySelector("#message-badge");
-  badge.hidden = relevant.length === 0;
-  badge.textContent = relevant.length;
 }
 
 async function restoreSecureSession() {

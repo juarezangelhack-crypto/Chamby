@@ -87,10 +87,22 @@ Requisitos: Python 3 y Node.js para las comprobaciones de sintaxis.
 git clone https://github.com/juarezangelhack-crypto/Chamby.git
 cd Chamby
 python -m pip install -r requirements.txt
+```
+
+Desde PowerShell, en la carpeta que contiene `server.py`, inicia el backend:
+
+```powershell
+$env:FIREBASE_API_KEY = "TU_WEB_API_KEY_DE_FIREBASE"
 python server.py
 ```
 
-Abre <http://127.0.0.1:4173/>. El servidor usa `PORT` si está definido; por defecto utiliza `4173`. Para probar autenticación local también se necesita configurar `FIREBASE_API_KEY` en el entorno del proceso. No incluyas credenciales privadas ni claves de servicio de Firebase en el repositorio.
+Obtén la clave web en la configuración del proyecto Firebase y habilita el proveedor de acceso **Correo electrónico/contraseña**. Usa una cuenta creada en ese mismo proyecto. Si no configuras `FIREBASE_API_KEY`, la página puede abrir, pero el inicio de sesión no estará disponible. No guardes la clave ni credenciales privadas en el repositorio.
+
+Abre <http://127.0.0.1:4173/>. El servidor usa `PORT` si está definido; por defecto utiliza `4173`.
+
+### Si descargaste el ZIP y no puedes iniciar sesión
+
+Abre una terminal en la carpeta extraída que contiene `server.py` y ejecuta los comandos de arriba. **No uses `python -m http.server`**: ese comando solo sirve archivos estáticos y no ejecuta la API. Si el terminal muestra `GET /api/jobs 404`, detén ese servidor con `Ctrl+C` y vuelve a iniciar con `python server.py`. Chamby mostrará este aviso si detecta un servidor estático.
 
 La base local se crea como `encuentralab.db` junto al servidor por defecto. Se puede cambiar con `DATA_DIR` o `DATABASE_PATH`. Railway conserva la base de producción en su volumen persistente; no reemplaces ese archivo con una base local.
 

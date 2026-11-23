@@ -44,6 +44,12 @@ function showToast(text) {
   clearTimeout(showToast.timer);
   showToast.timer = setTimeout(() => toast.classList.remove("visible"), 2800);
 }
+function showStaticServerHelp(response) {
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) return false;
+  showToast("Servidor estático detectado. Detén python -m http.server y ejecuta python server.py.");
+  return true;
+}
 function save() {
   write(STORAGE.jobs, jobs);
   write(STORAGE.users, users);
@@ -737,6 +743,7 @@ function openAuth(action) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email })
       });
+      if (showStaticServerHelp(response)) return;
       const result = await response.json();
       authFeedback.textContent = result.message || result.error || "No se pudo enviar el enlace.";
       authFeedback.classList.toggle("error", !response.ok);
@@ -776,6 +783,7 @@ function openAuth(action) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password })
       });
+      if (showStaticServerHelp(response)) return;
       const result = await response.json();
       if (!response.ok) { showToast(result.error); return; }
       currentUser = result.user;
@@ -796,6 +804,7 @@ function openAuth(action) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, email, password, district })
     });
+    if (showStaticServerHelp(response)) return;
     const result = await response.json();
     if (!response.ok) { showToast(result.error); return; }
 
@@ -847,6 +856,7 @@ async function loadServerJobs(silent = false) {
   try {
     const response = await fetch("/api/jobs");
     if (!response.ok) {
+      if (showStaticServerHelp(response)) return;
       if (!silent) showToast("No se pudieron cargar los trabajos. Inténtalo de nuevo.");
       return;
     }
@@ -885,6 +895,7 @@ async function restoreSecureSession() {
       connectMessageStream();
       switchView("buscar");
     } else {
+      showStaticServerHelp(response);
       currentUser = null;
       profile = null;
       write(STORAGE.current, null);

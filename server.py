@@ -160,8 +160,10 @@ def firebase_error_response(code):
         return 400, {"error": "La contraseña no cumple los requisitos de Firebase."}
     if code in {"OPERATION_NOT_ALLOWED", "CONFIGURATION_NOT_FOUND"}:
         return 503, {"error": "Activa Email/Contraseña en la configuración de autenticación de Firebase."}
-    if code in {"API_KEY_INVALID", "FIREBASE_NOT_CONFIGURED"}:
-        return 503, {"error": "Falta configurar la clave web de Firebase en Railway."}
+    if code == "API_KEY_INVALID":
+        return 503, {"error": "La clave web de Firebase no es válida. Revisa FIREBASE_API_KEY."}
+    if code == "FIREBASE_NOT_CONFIGURED":
+        return 503, {"error": "Configura FIREBASE_API_KEY en el entorno del servidor para habilitar el inicio de sesión."}
     if code == "INVALID_CONTINUE_URI":
         return 503, {"error": "Agrega el dominio de Chamby a los dominios autorizados de Firebase."}
     if code == "FIREBASE_UNAVAILABLE":

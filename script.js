@@ -72,9 +72,11 @@ document.querySelectorAll("[data-view]").forEach((button) => button.addEventList
 
 function getVisibleJobs() {
   const category = document.querySelector("#category-filter").value;
+  const district = document.querySelector("#district-filter").value.trim().toLocaleLowerCase("es");
   const sort = document.querySelector("#sort-filter").value;
   let result = jobs.filter((job) => job.type === pageType && job.status === "Abierto" && job.applicantCount < job.applicantLimit);
   if (category !== "todas") result = result.filter((job) => job.category === category);
+  if (district) result = result.filter((job) => String(job.city || "").trim().toLocaleLowerCase("es") === district);
   if (sort === "recientes") result.sort((a, b) => b.createdAt - a.createdAt);
   return result;
 }
@@ -108,6 +110,11 @@ function renderJobs() {
 }
 
 document.querySelector("#category-filter").addEventListener("change", renderJobs);
+const districtFilter = document.querySelector("#district-filter");
+document.querySelectorAll("#district-list option").forEach((option) => {
+  districtFilter.add(new Option(option.value, option.value));
+});
+districtFilter.addEventListener("change", renderJobs);
 document.querySelector("#sort-filter").addEventListener("change", renderJobs);
 
 document.querySelector("#job-grid").addEventListener("click", (event) => {
@@ -292,6 +299,8 @@ document.querySelector("#profile-form").addEventListener("submit", async (event)
     form.reset();
     profile = result.profile;
     updateProfileForm();
+    districtFilter.value = profile.district || "";
+    renderJobs();
     showToast("Perfil guardado para esta modalidad.");
   } catch {
     showToast("No se pudo guardar tu perfil. Revisa tu conexión e inténtalo otra vez.");
@@ -309,8 +318,13 @@ async function loadServerProfile() {
       showToast(result.error || "No se pudo cargar tu perfil.");
       return;
     }
+    const previousDistrict = profile?.district || "";
     profile = result.profile;
+    if (!districtFilter.value || districtFilter.value === previousDistrict) {
+      districtFilter.value = profile?.district || "";
+    }
     updateProfileForm();
+    renderJobs();
   } catch {
     showToast("No se pudo cargar tu perfil. Revisa tu conexión.");
   }

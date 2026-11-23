@@ -39,7 +39,6 @@ button, a, input, select, textarea { outline-offset: 3px; }
 body[data-job-type="Formal"] #anunciar-view { display: none !important; }
 .welcome-page { min-height: calc(100vh - 74px); display: grid; place-items: center; padding: 36px 20px; color: white; background: linear-gradient(145deg, #19334f 0%, #233d58 55%, #172b42 100%); text-align: center; }
 .welcome-content { max-width: 900px; }
-.welcome-content .kicker { color: #e5c25b; }
 .welcome-content h1 { font-size: clamp(2.4rem, 5vw, 3.5rem); letter-spacing: 0; }
 .welcome-question { margin: 8px 0 22px; font-size: clamp(1.25rem, 3vw, 1.8rem); }
 .work-choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 760px; margin-inline: auto; }
@@ -50,6 +49,7 @@ body[data-job-type="Formal"] #anunciar-view { display: none !important; }
 .choice-illustration { width: min(190px, 90%); display: block; transition: transform .18s ease; }
 .choice-illustration svg { width: 100%; height: auto; overflow: visible; }
 .no-profile-icon { width: min(180px, 80%); }
+.welcome-profile-avatar { width: min(180px, 80%); aspect-ratio: 1; height: auto; border-radius: 50%; object-fit: cover; overflow: hidden; background: #c6c8cc; }
 .work-choice { text-decoration: none; }
 .choice-caption { font-size: clamp(1.15rem, 2.8vw, 1.6rem); line-height: 1.25; }
 .kicker { margin: 0 0 7px; color: var(--green); font-size: .78rem; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; }

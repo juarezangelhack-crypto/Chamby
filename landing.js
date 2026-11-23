@@ -1,5 +1,6 @@
 const accountButton = document.querySelector("#account-button");
 const accountDialog = document.querySelector("#account-dialog");
+const quickProfilePhoto = document.querySelector("#quick-profile-photo");
 const toast = document.querySelector("#toast");
 let currentUser = null;
 
@@ -8,6 +9,16 @@ function showToast(message) {
   toast.classList.add("visible");
   clearTimeout(showToast.timer);
   showToast.timer = setTimeout(() => toast.classList.remove("visible"), 2800);
+}
+
+async function loadQuickProfilePhoto() {
+  const response = await fetch("/api/profiles?type=Rapido");
+  if (!response.ok) throw new Error("profile_load_failed");
+  const result = await response.json();
+  const profile = result.profile;
+  if (profile?.photoData && profile.photoMime) {
+    quickProfilePhoto.src = `data:${profile.photoMime};base64,${profile.photoData}`;
+  }
 }
 
 function openAccount() {
@@ -28,6 +39,7 @@ function openAccount() {
       if (!response.ok) throw new Error("logout_failed");
       currentUser = null;
       accountButton.textContent = "Entrar";
+      quickProfilePhoto.src = "assets/no-profile.svg";
       accountDialog.close();
       showToast("Sesión cerrada.");
     } catch {
@@ -52,5 +64,8 @@ fetch("/api/session")
     const result = await response.json();
     currentUser = result.user;
     accountButton.textContent = currentUser.name.split(" ")[0];
+    loadQuickProfilePhoto().catch(() => {
+      showToast("No se pudo cargar la foto de perfil.");
+    });
   })
   .catch(() => {});

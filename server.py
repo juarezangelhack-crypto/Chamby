@@ -10,6 +10,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import unquote
 
 PORT = int(os.getenv("PORT", "4173"))
+MAX_APPLICANTS_PER_JOB = 10
 DATA_DIR = os.getenv("DATA_DIR", os.path.dirname(__file__))
 os.makedirs(DATA_DIR, exist_ok=True)
 DB = os.getenv("DATABASE_PATH", os.path.join(DATA_DIR, "encuentralab.db"))
@@ -255,7 +256,10 @@ class Handler(SimpleHTTPRequestHandler):
             return
         if self.path == "/api/jobs":
             con = db()
-            rows = con.execute("SELECT * FROM jobs ORDER BY created_at DESC").fetchall()
+            rows = con.execute(
+                "SELECT j.*,(SELECT COUNT(*) FROM applications a WHERE a.job_id=j.id) AS applicant_count "
+                "FROM jobs j ORDER BY j.created_at DESC"
+            ).fetchall()
             con.close()
             self.respond(200, {"jobs": [dict(row) for row in rows]})
             return
@@ -309,6 +313,9 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_DELETE(self):
         path = self.path.split("?", 1)[0]
+        if path.startswith("/api/applications/"):
+            self.delete_application(unquote(path[len("/api/applications/"):]))
+            return
         if path.startswith("/api/jobs/"):
             self.delete_job(unquote(path[len("/api/jobs/"):]))
             return
@@ -509,6 +516,16 @@ class Handler(SimpleHTTPRequestHandler):
             con.close()
             self.respond(409, {"error": "Ya estas postulado a este trabajo"})
             return
+        applicant_count = con.execute(
+            "SELECT COUNT(*) FROM applications WHERE job_id=?", (job_id,)
+        ).fetchone()[0]
+        if applicant_count >= MAX_APPLICANTS_PER_JOB:
+            con.close()
+            self.respond(409, {
+                "error": "Este anuncio alcanzó el máximo de 10 postulantes.",
+                "code": "MAX_APPLICANTS"
+            })
+            return
         application_id = secrets.token_urlsafe(12)
         conversation_id = f"{job_id}:{':'.join(sorted([job['owner_id'], user['id']]))}"
         con.execute(
@@ -523,6 +540,35 @@ class Handler(SimpleHTTPRequestHandler):
         con.commit()
         con.close()
         self.respond(201, {"id": application_id, "conversationId": conversation_id})
+
+    def delete_application(self, application_id):
+        user = self.current_user()
+        if not user:
+            self.respond(401, {"error": "Sesion requerida"})
+            return
+        if not application_id:
+            self.respond(400, {"error": "Postulacion invalida"})
+            return
+        con = db()
+        con.execute("BEGIN IMMEDIATE")
+        application = con.execute(
+            "SELECT job_id FROM applications WHERE id=?", (application_id,)
+        ).fetchone()
+        if not application:
+            con.close()
+            self.respond(404, {"error": "La postulacion ya no existe"})
+            return
+        job = con.execute(
+            "SELECT owner_id FROM jobs WHERE id=?", (application["job_id"],)
+        ).fetchone()
+        if not job or job["owner_id"] != user["id"]:
+            con.close()
+            self.respond(403, {"error": "Solo quien publicó el anuncio puede quitar postulantes"})
+            return
+        con.execute("DELETE FROM applications WHERE id=?", (application_id,))
+        con.commit()
+        con.close()
+        self.respond(200, {"ok": True})
 
     def delete_job(self, job_id):
         user = self.current_user()

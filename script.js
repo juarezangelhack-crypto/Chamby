@@ -5,6 +5,7 @@ const STORAGE = {
   applications: "encuentralab_applications",
   messages: "encuentralab_messages"
 };
+const MAX_JOB_APPLICANTS = 10;
 
 function read(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
@@ -151,21 +152,25 @@ function openJobDetail(jobId) {
   const job = jobs.find((item) => item.id === jobId);
   if (!job) return;
   const isOwner = currentUser?.id === job.ownerId;
+  const applicantCount = Number(job.applicantCount || 0);
+  const isFull = applicantCount >= MAX_JOB_APPLICANTS;
   document.querySelector("#job-dialog-content").innerHTML = `
     <p class="kicker">${job.type === "Rapido" ? "Trabajo rápido" : "Trabajo formal"} · ${esc(job.category)}</p>
     <h2 id="job-dialog-title">${esc(job.title)}</h2>
     <p><strong>${esc(job.ownerName)}</strong> · ${esc(job.city)}</p>
     <p>${esc(job.description)}</p>
     <p><strong>Pago:</strong> ${esc(job.pay)}<br><strong>Horario:</strong> ${esc(job.schedule)}</p>
+    <p><strong>Postulantes:</strong> ${applicantCount}/${MAX_JOB_APPLICANTS}</p>
     ${isOwner
       ? `<p class="owner-notice">Este es tu anuncio. No puedes postularte a tu propio trabajo.</p>`
-      : `<div class="dialog-actions">
-          <button class="primary-button" type="button" id="apply-job">Postularme</button>
+      : `${isFull ? `<p class="owner-notice">Se alcanzó el máximo de 10 postulantes. Ya no se aceptan más postulaciones.</p>` : ""}
+        <div class="dialog-actions">
+          ${isFull ? "" : `<button class="primary-button" type="button" id="apply-job">Postularme</button>`}
           <button class="secondary-button" type="button" id="chat-owner">Contactar</button>
         </div>`}`;
   jobDialog.showModal();
   if (!isOwner) {
-    document.querySelector("#apply-job").addEventListener("click", () => applyForJob(job.id));
+    if (!isFull) document.querySelector("#apply-job").addEventListener("click", () => applyForJob(job.id));
     document.querySelector("#chat-owner").addEventListener("click", () => openChatWith(job.ownerId, job.ownerName, job.id));
   }
 }
@@ -178,8 +183,17 @@ async function applyForJob(jobId) {
     body: JSON.stringify({ jobId })
   });
   const result = await response.json();
-  if (!response.ok) { showToast(result.error); return; }
-  await Promise.all([loadServerApplications(), loadServerMessages()]);
+  if (!response.ok) {
+    if (result.code === "MAX_APPLICANTS") {
+      jobDialog.close();
+      await loadServerJobs();
+      openJobDetail(jobId);
+      return;
+    }
+    showToast(result.error);
+    return;
+  }
+  await Promise.all([loadServerApplications(), loadServerMessages(), loadServerJobs()]);
   jobDialog.close();
   showToast("Postulación enviada. El anunciante recibió tu mensaje.");
   renderMyJobs();
@@ -295,19 +309,40 @@ async function deleteJob(jobId) {
   }
 }
 
-function showApplicants(jobId) {
+function showApplicants(jobId, notice = "") {
   const applicants = applications.filter((item) => item.jobId === jobId);
   const job = jobs.find((item) => item.id === jobId);
   document.querySelector("#job-dialog-content").innerHTML = `
     <h2 id="job-dialog-title">Postulantes</h2>
-    <p>${esc(job.title)}</p>
-    ${applicants.length ? applicants.map((item) => `<div class="my-job-row"><div><strong>${esc(item.applicantName)}</strong><span>${esc(item.applicantDistrict || "Distrito no registrado")} · ${esc(item.status)}</span></div><button class="secondary-button" type="button" data-chat-applicant="${esc(item.applicantId)}" data-job="${esc(job.id)}">Abrir chat</button></div>`).join("") : `<div class="empty-state"><p>No hay postulaciones todavía.</p></div>`}`;
+    <p>${esc(job.title)} · ${applicants.length}/${MAX_JOB_APPLICANTS} postulantes</p>
+    ${notice ? `<p class="owner-notice" role="status">${esc(notice)}</p>` : ""}
+    ${applicants.length ? applicants.map((item) => `<div class="my-job-row"><div><strong>${esc(item.applicantName)}</strong><span>${esc(item.applicantDistrict || "Distrito no registrado")} · ${esc(item.status)}</span></div><button class="secondary-button" type="button" data-chat-applicant="${esc(item.applicantId)}" data-job="${esc(job.id)}">Abrir chat</button><button class="secondary-button" type="button" data-remove-application="${esc(item.id)}" data-job="${esc(job.id)}" data-applicant-name="${esc(item.applicantName)}">Quitar</button></div>`).join("") : `<div class="empty-state"><p>No hay postulaciones todavía.</p></div>`}`;
   jobDialog.showModal();
   jobDialog.querySelectorAll("[data-chat-applicant]").forEach((button) => button.addEventListener("click", () => {
     jobDialog.close();
     const applicant = applicants.find((item) => item.applicantId === button.dataset.chatApplicant);
     openChatWith(button.dataset.chatApplicant, applicant?.applicantName || "Usuario", button.dataset.job);
   }));
+  jobDialog.querySelectorAll("[data-remove-application]").forEach((button) => button.addEventListener("click", () => {
+    removeApplicant(button.dataset.removeApplication, button.dataset.job, button.dataset.applicantName);
+  }));
+}
+
+async function removeApplicant(applicationId, jobId, applicantName) {
+  if (!confirm(`¿Quitar la postulación de ${applicantName}? Se liberará un cupo y se conservará el historial del chat.`)) return;
+  try {
+    const response = await fetch(`/api/applications/${encodeURIComponent(applicationId)}`, { method: "DELETE" });
+    const result = await response.json();
+    if (!response.ok) {
+      showToast(result.error || "No se pudo quitar la postulación.");
+      return;
+    }
+    await Promise.all([loadServerApplications(), loadServerJobs()]);
+    jobDialog.close();
+    showApplicants(jobId, "Postulación eliminada. Se liberó un cupo y se conservó el chat.");
+  } catch {
+    showToast("No se pudo quitar la postulación. Inténtalo otra vez.");
+  }
 }
 
 function conversationIdFor(firstId, secondId, jobId) {
@@ -695,6 +730,7 @@ async function loadServerJobs() {
       ownerId: job.owner_id,
       ownerName: job.owner_name,
       status: job.status,
+      applicantCount: Number(job.applicant_count || 0),
       createdAt: job.created_at
     }));
     renderJobs();

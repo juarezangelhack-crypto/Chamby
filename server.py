@@ -1,13 +1,16 @@
+import base64
+import binascii
 import hashlib
 import json
 import os
 import secrets
 import sqlite3
 import time
+import unicodedata
 import urllib.error
 import urllib.request
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import unquote
+from urllib.parse import parse_qs, unquote, urlsplit
 
 PORT = int(os.getenv("PORT", "4173"))
 MAX_APPLICANTS_PER_JOB = 10
@@ -29,6 +32,9 @@ def db():
     con = sqlite3.connect(DB)
     con.row_factory = sqlite3.Row
     return con
+
+def normalize_district(value):
+    return unicodedata.normalize("NFD", value).encode("ascii", "ignore").decode("ascii").strip().lower()
 
 def init_db():
     con = db()
@@ -81,6 +87,17 @@ def init_db():
       applicant_name TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'Pendiente',
       created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS user_profiles (
+      user_id TEXT NOT NULL,
+      profile_type TEXT NOT NULL CHECK(profile_type IN ('Rapido','Formal')),
+      district TEXT NOT NULL,
+      photo_mime TEXT,
+      photo_data TEXT,
+      cv_name TEXT,
+      cv_data BLOB,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY(user_id, profile_type)
     );
     CREATE TABLE IF NOT EXISTS messages (
       id TEXT PRIMARY KEY,
@@ -171,6 +188,17 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def respond_bytes(self, status, payload, content_type, headers=None):
+        self.send_response(status)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(payload)))
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Cache-Control", "private, no-store")
+        for name, value in (headers or {}).items():
+            self.send_header(name, value)
+        self.end_headers()
+        self.wfile.write(payload)
+
     def cookie_token(self):
         raw = self.headers.get("Cookie", "")
         for item in raw.split(";"):
@@ -196,10 +224,199 @@ class Handler(SimpleHTTPRequestHandler):
         con.close()
         return dict(row) if row else None
 
+    def profile_type(self, query):
+        value = query.get("type", [None])[0]
+        if value not in {"Rapido", "Formal"}:
+            self.respond(400, {"error": "La modalidad del perfil no es válida."})
+            return None
+        return value
+
+    def profile_data(self, user_id, profile_type, row=None):
+        con = db()
+        account = con.execute("SELECT name FROM users WHERE id=?", (user_id,)).fetchone()
+        con.close()
+        if not account:
+            return None
+        return {
+            "userId": user_id,
+            "name": account["name"],
+            "profileType": profile_type,
+            "district": row["district"] if row else "",
+            "photoMime": row["photo_mime"] if row else None,
+            "photoData": row["photo_data"] if row else None,
+            "cvName": row["cv_name"] if row else None
+        }
+
+    def can_view_applicant_profile(self, user_id, applicant_id, job_id, profile_type):
+        if not job_id:
+            return False
+        con = db()
+        application = con.execute(
+            "SELECT 1 FROM jobs j JOIN applications a ON a.job_id=j.id "
+            "WHERE j.id=? AND j.owner_id=? AND j.type=? AND a.applicant_id=?",
+            (job_id, user_id, profile_type, applicant_id)
+        ).fetchone()
+        con.close()
+        return bool(application)
+
+    def get_profile(self, profile_user_id, query):
+        user = self.current_user()
+        if not user:
+            self.respond(401, {"error": "Inicia sesión para ver los perfiles."})
+            return
+        profile_type = self.profile_type(query)
+        if not profile_type:
+            return
+        target_id = profile_user_id or user["id"]
+        if target_id != user["id"] and not self.can_view_applicant_profile(
+            user["id"], target_id, query.get("jobId", [None])[0], profile_type
+        ):
+            self.respond(403, {"error": "No tienes permiso para ver este perfil."})
+            return
+        con = db()
+        row = con.execute(
+            "SELECT * FROM user_profiles WHERE user_id=? AND profile_type=?",
+            (target_id, profile_type)
+        ).fetchone()
+        con.close()
+        profile = self.profile_data(target_id, profile_type, row)
+        if not profile:
+            self.respond(404, {"error": "No se encontró el perfil."})
+            return
+        self.respond(200, {"profile": profile})
+
+    def get_profile_cv(self, profile_user_id, query):
+        user = self.current_user()
+        if not user:
+            self.respond(401, {"error": "Inicia sesión para ver este CV."})
+            return
+        profile_type = self.profile_type(query)
+        if not profile_type:
+            return
+        if profile_user_id != user["id"] and not self.can_view_applicant_profile(
+            user["id"], profile_user_id, query.get("jobId", [None])[0], profile_type
+        ):
+            self.respond(403, {"error": "No tienes permiso para ver este CV."})
+            return
+        con = db()
+        row = con.execute(
+            "SELECT cv_data FROM user_profiles WHERE user_id=? AND profile_type=?",
+            (profile_user_id, profile_type)
+        ).fetchone()
+        con.close()
+        if not row or not row["cv_data"]:
+            self.respond(404, {"error": "Este perfil aún no tiene un CV."})
+            return
+        self.respond_bytes(
+            200,
+            bytes(row["cv_data"]),
+            "application/pdf",
+            {"Content-Disposition": 'inline; filename="curriculum.pdf"'}
+        )
+
+    def save_profile(self):
+        user = self.current_user()
+        if not user:
+            self.respond(401, {"error": "Inicia sesión para guardar tu perfil."})
+            return
+        try:
+            content_length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            self.respond(400, {"error": "La solicitud no tiene un tamaño válido."})
+            return
+        if content_length < 0:
+            self.respond(400, {"error": "La solicitud no tiene un tamaño válido."})
+            return
+        if content_length > 11 * 1024 * 1024:
+            self.respond(413, {"error": "La foto y el CV superan el tamaño total permitido."})
+            return
+        try:
+            data = self.json_body()
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            self.respond(400, {"error": "Los datos del perfil no son JSON válido."})
+            return
+        if not isinstance(data, dict):
+            self.respond(400, {"error": "Los datos del perfil no son válidos."})
+            return
+        profile_type = data.get("type")
+        if not isinstance(profile_type, str) or profile_type not in {"Rapido", "Formal"}:
+            self.respond(400, {"error": "La modalidad del perfil no es válida."})
+            return
+        district = str(data.get("district", "")).strip()
+        if normalize_district(district) not in {normalize_district(item) for item in LIMA_DISTRICTS}:
+            self.respond(400, {"error": "Selecciona un distrito válido de Lima."})
+            return
+
+        photo_data = data.get("photoData")
+        photo_mime = data.get("photoMime")
+        photo_bytes = None
+        if photo_data is not None or photo_mime is not None:
+            if not isinstance(photo_mime, str) or photo_mime not in {"image/jpeg", "image/png", "image/webp"} or not isinstance(photo_data, str):
+                self.respond(400, {"error": "La foto debe ser JPEG, PNG o WebP."})
+                return
+            if len(photo_data) > 3 * 1024 * 1024:
+                self.respond(413, {"error": "La foto debe pesar como máximo 2 MB."})
+                return
+            try:
+                photo_bytes = base64.b64decode(photo_data, validate=True)
+            except (binascii.Error, ValueError):
+                self.respond(400, {"error": "El archivo de foto no es válido."})
+                return
+            signatures = {
+                "image/jpeg": photo_bytes.startswith(b"\xff\xd8\xff"),
+                "image/png": photo_bytes.startswith(b"\x89PNG\r\n\x1a\n"),
+                "image/webp": photo_bytes.startswith(b"RIFF") and photo_bytes[8:12] == b"WEBP"
+            }
+            if not photo_bytes or len(photo_bytes) > 2 * 1024 * 1024 or not signatures[photo_mime]:
+                self.respond(400, {"error": "El contenido de la foto no coincide con su formato."})
+                return
+
+        cv_data = data.get("cvData")
+        cv_name = data.get("cvName")
+        cv_bytes = None
+        if cv_data is not None or cv_name is not None:
+            if not isinstance(cv_data, str) or not isinstance(cv_name, str) or not cv_name.lower().endswith(".pdf"):
+                self.respond(400, {"error": "El CV debe ser un archivo PDF válido."})
+                return
+            if len(cv_data) > 7 * 1024 * 1024:
+                self.respond(413, {"error": "El CV debe pesar como máximo 5 MB."})
+                return
+            try:
+                cv_bytes = base64.b64decode(cv_data, validate=True)
+            except (binascii.Error, ValueError):
+                self.respond(400, {"error": "El archivo CV no es válido."})
+                return
+            if not cv_bytes.startswith(b"%PDF-") or len(cv_bytes) > 5 * 1024 * 1024:
+                self.respond(400, {"error": "El contenido del CV no es un PDF válido."})
+                return
+            cv_name = os.path.basename(cv_name)[:120]
+
+        con = db()
+        con.execute(
+            "INSERT INTO user_profiles(user_id,profile_type,district,photo_mime,photo_data,cv_name,cv_data,updated_at) "
+            "VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(user_id,profile_type) DO UPDATE SET "
+            "district=excluded.district,"
+            "photo_mime=COALESCE(excluded.photo_mime,user_profiles.photo_mime),"
+            "photo_data=COALESCE(excluded.photo_data,user_profiles.photo_data),"
+            "cv_name=COALESCE(excluded.cv_name,user_profiles.cv_name),"
+            "cv_data=COALESCE(excluded.cv_data,user_profiles.cv_data),"
+            "updated_at=excluded.updated_at",
+            (user["id"], profile_type, district, photo_mime if photo_bytes else None,
+             base64.b64encode(photo_bytes).decode("ascii") if photo_bytes else None,
+             cv_name if cv_bytes else None, sqlite3.Binary(cv_bytes) if cv_bytes else None, int(time.time()))
+        )
+        con.commit()
+        row = con.execute(
+            "SELECT * FROM user_profiles WHERE user_id=? AND profile_type=?",
+            (user["id"], profile_type)
+        ).fetchone()
+        con.close()
+        self.respond(200, {"profile": self.profile_data(user["id"], profile_type, row)})
+
     def messages_for_user(self, user):
         con = db()
         rows = con.execute(
-            "SELECT m.*,j.title AS job_title,j.owner_id,j.owner_name,"
+            "SELECT m.*,j.title AS job_title,j.owner_id,j.owner_name,j.type AS job_type,"
             "u.name AS sender_name,u.district AS sender_district "
             "FROM messages m "
             "JOIN jobs j ON j.id=substr(m.conversation_id,1,instr(m.conversation_id,':')-1) "
@@ -254,14 +471,17 @@ class Handler(SimpleHTTPRequestHandler):
             self.close_connection = True
 
     def do_GET(self):
-        if self.path == "/api/session":
+        parsed = urlsplit(self.path)
+        path = parsed.path
+        query = parse_qs(parsed.query)
+        if path == "/api/session":
             user = self.current_user()
             self.respond(200 if user else 401, {"user": user})
             return
-        if self.path == "/api/messages/stream":
+        if path == "/api/messages/stream":
             self.stream_messages()
             return
-        if self.path == "/api/jobs":
+        if path == "/api/jobs":
             con = db()
             rows = con.execute(
                 "SELECT j.*,(SELECT COUNT(*) FROM applications a WHERE a.job_id=j.id) AS applicant_count "
@@ -270,15 +490,18 @@ class Handler(SimpleHTTPRequestHandler):
             con.close()
             self.respond(200, {"jobs": [dict(row) for row in rows]})
             return
-        if self.path == "/api/applications":
+        if path == "/api/applications":
             user = self.current_user()
             if not user:
                 self.respond(401, {"error": "Sesion requerida"})
                 return
             con = db()
             rows = con.execute(
-                "SELECT a.*,u.name AS account_name,u.district AS account_district "
+                "SELECT a.*,u.name AS account_name,u.district AS account_district,j.type AS job_type,"
+                "COALESCE(p.district,u.district) AS applicant_district "
                 "FROM applications a JOIN users u ON u.id=a.applicant_id "
+                "JOIN jobs j ON j.id=a.job_id "
+                "LEFT JOIN user_profiles p ON p.user_id=a.applicant_id AND p.profile_type=j.type "
                 "WHERE a.applicant_id=? OR a.job_id IN "
                 "(SELECT id FROM jobs WHERE owner_id=?) ORDER BY a.created_at DESC",
                 (user["id"], user["id"])
@@ -286,14 +509,26 @@ class Handler(SimpleHTTPRequestHandler):
             con.close()
             self.respond(200, {"applications": [dict(row) for row in rows]})
             return
-        if self.path == "/api/messages":
+        if path == "/api/profiles":
+            self.get_profile(None, query)
+            return
+        if path.startswith("/api/profiles/"):
+            parts = [unquote(part) for part in path[len("/api/profiles/"):].split("/")]
+            if len(parts) == 2 and parts[1] == "cv":
+                self.get_profile_cv(parts[0], query)
+            elif len(parts) == 1:
+                self.get_profile(parts[0], query)
+            else:
+                self.respond(404, {"error": "Ruta no encontrada"})
+            return
+        if path == "/api/messages":
             user = self.current_user()
             if not user:
                 self.respond(401, {"error": "Sesion requerida"})
                 return
             self.respond(200, {"messages": self.messages_for_user(user)})
             return
-        if self.path.startswith("/api/"):
+        if path.startswith("/api/"):
             self.respond(404, {"error": "Ruta no encontrada"})
             return
         super().do_GET()
@@ -309,6 +544,8 @@ class Handler(SimpleHTTPRequestHandler):
             self.logout()
         elif self.path == "/api/jobs":
             self.create_job()
+        elif self.path == "/api/profiles":
+            self.save_profile()
         elif self.path == "/api/applications":
             self.create_application()
         elif self.path == "/api/messages":
@@ -473,6 +710,9 @@ class Handler(SimpleHTTPRequestHandler):
             self.respond(401, {"error": "Sesion requerida"})
             return
         data = self.json_body()
+        if data.get("type") != "Rapido":
+            self.respond(403, {"error": "Por ahora solo se pueden publicar trabajos rápidos."})
+            return
         required = ("title", "type", "category", "city", "pay", "schedule", "description")
         if any(not str(data.get(field, "")).strip() for field in required):
             self.respond(400, {"error": "Completa todos los campos"})
@@ -518,6 +758,17 @@ class Handler(SimpleHTTPRequestHandler):
         if job["owner_id"] == user["id"]:
             con.close()
             self.respond(403, {"error": "No puedes postularte a tu propio anuncio"})
+            return
+        profile = con.execute(
+            "SELECT district FROM user_profiles WHERE user_id=? AND profile_type=?",
+            (user["id"], job["type"])
+        ).fetchone()
+        if not profile or not profile["district"]:
+            con.close()
+            self.respond(409, {
+                "error": "Completa tu perfil y selecciona tu distrito antes de postularte.",
+                "code": "PROFILE_REQUIRED"
+            })
             return
         if job["status"] != "Abierto":
             con.close()

@@ -4,269 +4,47 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#17324d">
-  <meta name="description" content="Chambly conecta trabajos rápidos y formales en Lima.">
-  <title>Chambly | Trabajo en Lima</title>
+  <meta name="description" content="Elige tu camino para encontrar oportunidades en Chambly.">
+  <title>Chambly | Elige tu camino</title>
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="landing-page">
   <a class="skip-link" href="#contenido">Saltar al contenido</a>
-  <datalist id="district-list">
-    <option value="Ancón"><option value="Ate"><option value="Barranco"><option value="Breña">
-    <option value="Carabayllo"><option value="Chaclacayo"><option value="Chorrillos">
-    <option value="Cieneguilla"><option value="Comas"><option value="El Agustino">
-    <option value="Independencia"><option value="Jesús María"><option value="La Molina">
-    <option value="La Victoria"><option value="Lince"><option value="Los Olivos">
-    <option value="Lurigancho"><option value="Lurín"><option value="Magdalena del Mar">
-    <option value="Miraflores"><option value="Pachacámac"><option value="Pucusana">
-    <option value="Pueblo Libre"><option value="Puente Piedra"><option value="Rímac">
-    <option value="San Bartolo"><option value="San Borja"><option value="San Isidro">
-    <option value="San Juan de Lurigancho"><option value="San Juan de Miraflores">
-    <option value="San Luis"><option value="San Martín de Porres"><option value="Santa Anita">
-    <option value="Santa María del Mar"><option value="Santa Rosa"><option value="Santiago de Surco">
-    <option value="Surquillo"><option value="Villa El Salvador"><option value="Villa María del Triunfo">
-  </datalist>
   <header class="header">
     <div class="container header-inner">
-      <button class="brand" type="button" data-view="dashboard" aria-label="Ir al inicio">
+      <a class="brand" href="index.html" aria-label="Chambly, inicio">
         <img class="brand-image" src="assets/chambly-wordmark.png" alt="Chambly">
-      </button>
+      </a>
       <button class="account-button" type="button" id="account-button">Entrar</button>
     </div>
   </header>
 
-  <main id="contenido">
-    <section class="view active" id="inicio-view" aria-labelledby="inicio-title">
-      <div class="entry-page">
-        <div class="entry-content">
-          <img class="entry-logo" src="assets/chambly-mark.png" alt="Logo de Chambly">
-          <h1 class="sr-only" id="inicio-title">Bienvenido a Chambly</h1>
-          <button class="entry-login" type="button" id="entry-login">Iniciar sesión</button>
-          <p>¿Aún no tienes una cuenta? ¡Créala ahora!</p>
-          <button class="entry-register" type="button" id="entry-register">Crear cuenta</button>
-          <button class="entry-publish" type="button" id="entry-publish">Empresa / Publicar aviso</button>
-        </div>
+  <main id="contenido" class="welcome-page">
+    <div class="container welcome-content">
+      <p class="kicker">Oportunidades en Lima</p>
+      <h1>¡Bienvenido!</h1>
+      <p class="welcome-question">¿Qué empleo quieres encontrar hoy?</p>
+      <div class="work-choice-grid">
+        <a class="work-choice" href="trabajorapido.html">
+          <span class="choice-title">Trabajo<br>rápido</span>
+          <img class="choice-illustration no-profile-icon" src="assets/no-profile.svg" alt="">
+          <span class="choice-caption">Gana dinero con tus<br>habilidades</span>
+        </a>
+        <a class="work-choice" href="trabajoformal.html">
+          <span class="choice-title">Trabajo<br>formal</span>
+          <img class="choice-illustration no-profile-icon" src="assets/no-profile.svg" alt="">
+          <span class="choice-caption">Construye<br>experiencia laboral</span>
+        </a>
       </div>
-    </section>
-
-    <section class="view" id="dashboard-view" aria-labelledby="dashboard-title">
-      <div class="welcome-page">
-        <div class="container welcome-content">
-          <p class="kicker">Oportunidades en Lima</p>
-          <h1 id="dashboard-title">¡Bienvenido!</h1>
-          <p class="welcome-question">¿Qué empleo quieres encontrar hoy?</p>
-          <div class="work-choice-grid">
-            <button type="button" class="work-choice" data-select-type="Rapido">
-              <span class="choice-title">Búsqueda<br>rápida</span>
-              <span class="choice-illustration quick-illustration" aria-hidden="true">
-                <svg viewBox="0 0 160 150">
-                  <circle cx="78" cy="68" r="52" fill="#f3f2ee" stroke="#111" stroke-width="3"/>
-                  <circle cx="80" cy="52" r="20" fill="#333" stroke="#111" stroke-width="3"/>
-                  <path d="M27 114c6-25 23-38 53-38s47 13 53 38c-13 12-32 19-53 19s-40-7-53-19z" fill="#333" stroke="#111" stroke-width="3"/>
-                  <circle cx="128" cy="32" r="28" fill="#ad1111" stroke="#111" stroke-width="3"/>
-                  <text id="quick-count" x="128" y="41" text-anchor="middle" fill="#fff" font-size="24" font-weight="700">0</text>
-                </svg>
-              </span>
-              <span class="choice-caption">Gana dinero con tus<br>habilidades</span>
-            </button>
-            <button type="button" class="work-choice" data-select-type="Formal">
-              <span class="choice-title">Trabajo<br>formal</span>
-              <span class="choice-illustration formal-illustration" aria-hidden="true">
-                <svg viewBox="0 0 160 150">
-                  <circle cx="78" cy="68" r="52" fill="#f3f2ee" stroke="#111" stroke-width="3"/>
-                  <circle cx="80" cy="52" r="20" fill="#333" stroke="#111" stroke-width="3"/>
-                  <path d="M27 114c7-23 23-37 53-37s46 14 53 37c-13 13-32 20-53 20s-40-7-53-20z" fill="#333" stroke="#111" stroke-width="3"/>
-                  <path d="M64 82l16 16 16-16 9 10-13 39H68l-13-39z" fill="#151515" stroke="#111" stroke-width="2"/>
-                  <path d="M75 98h10l-2 23h-6z" fill="#eee"/>
-                  <circle cx="128" cy="32" r="28" fill="#ad1111" stroke="#111" stroke-width="3"/>
-                  <text id="formal-count" x="128" y="41" text-anchor="middle" fill="#fff" font-size="24" font-weight="700">0</text>
-                </svg>
-              </span>
-              <span class="choice-caption">Construye<br>experiencia laboral</span>
-            </button>
-          </div>
-          <div class="welcome-actions">
-            <button type="button" class="primary-button" data-view="anunciar">Publicar un trabajo</button>
-            <button type="button" class="secondary-button" data-view="mensajes">Mensajes</button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="view" id="buscar-view" aria-labelledby="buscar-title">
-      <div class="hero">
-        <div class="container hero-grid">
-          <div class="hero-copy">
-            <p class="kicker">Oportunidades cerca de ti</p>
-            <h1 id="buscar-title">Trabaja de la forma que necesites</h1>
-            <p>Encuentra trabajo formal o una tarea rápida para hoy. Personas reales, sin intermediarios confusos.</p>
-            <div class="type-choice" aria-label="Tipo de trabajo">
-              <button type="button" class="type-button" data-type="Rapido">Trabajo rápido</button>
-              <button type="button" class="type-button" data-type="Formal">Trabajo formal</button>
-            </div>
-          </div>
-          <form class="search-card" id="search-form" role="search">
-            <label for="search-text">¿Qué buscas?</label>
-            <input id="search-text" type="search" placeholder="Ej. mesero, diseño, tutoría">
-            <label for="search-city">Distrito</label>
-            <input id="search-city" type="search" placeholder="Ej. Miraflores" list="district-list">
-            <button class="primary-button" type="submit">Buscar oportunidades</button>
-          </form>
-        </div>
-      </div>
-
-      <div class="container listings-section">
-        <div class="section-heading">
-          <div>
-            <p class="kicker">Actualizado hoy</p>
-            <h2>Oportunidades disponibles</h2>
-          </div>
-          <p id="result-count" aria-live="polite"></p>
-        </div>
-        <div class="filter-row">
-          <label for="category-filter">Categoría</label>
-          <select id="category-filter">
-            <option value="todas">Todas</option>
-            <option value="Servicios">Servicios</option>
-            <option value="Comercio">Comercio</option>
-            <option value="Tecnología">Tecnología</option>
-            <option value="Educación">Educación</option>
-            <option value="Atención al cliente">Atención al cliente</option>
-            <option value="Construcción">Construcción</option>
-          </select>
-          <label for="sort-filter">Ordenar por</label>
-          <select id="sort-filter">
-            <option value="recientes">Más recientes</option>
-            <option value="rapidos">Trabajos rápidos primero</option>
-          </select>
-        </div>
-        <div class="job-grid" id="job-grid"></div>
-      </div>
-    </section>
-
-    <section class="view" id="anunciar-view" aria-labelledby="anunciar-title">
-      <div class="container narrow-page">
-        <p class="kicker">Publica una oportunidad</p>
-        <h1 id="anunciar-title">Anunciar un trabajo</h1>
-        <p class="page-intro">Completa los datos. Las personas podrán postularse y conversar contigo desde el buzón.</p>
-
-        <form class="publish-form" id="publish-form">
-          <div class="form-grid">
-            <div class="field">
-              <label for="publish-title">Título del trabajo *</label>
-              <input id="publish-title" name="title" required maxlength="70" placeholder="Ej. Ayuda para mudanza">
-            </div>
-            <div class="field">
-              <label for="publish-type">Tipo de trabajo *</label>
-              <select id="publish-type" name="type" required>
-                <option value="Rapido">Trabajo rápido</option>
-                <option value="Formal">Trabajo formal</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="publish-category">Categoría *</label>
-              <select id="publish-category" name="category" required>
-                <option value="Servicios">Servicios</option>
-                <option value="Comercio">Comercio</option>
-                <option value="Tecnología">Tecnología</option>
-                <option value="Educación">Educación</option>
-                <option value="Atención al cliente">Atención al cliente</option>
-                <option value="Construcción">Construcción</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="publish-applicant-limit">Máximo de postulantes *</label>
-              <select id="publish-applicant-limit" name="applicantLimit" required>
-                <option value="1">1 postulante</option>
-                <option value="2">2 postulantes</option>
-                <option value="3">3 postulantes</option>
-                <option value="4">4 postulantes</option>
-                <option value="5">5 postulantes</option>
-                <option value="6">6 postulantes</option>
-                <option value="7">7 postulantes</option>
-                <option value="8">8 postulantes</option>
-                <option value="9">9 postulantes</option>
-                <option value="10" selected>10 postulantes</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="publish-city">Distrito de Lima *</label>
-              <input id="publish-city" name="city" required maxlength="50" placeholder="Ej. Miraflores" list="district-list">
-            </div>
-            <div class="field">
-              <label for="publish-pay">Pago o salario *</label>
-              <input id="publish-pay" name="pay" required maxlength="60" placeholder="Ej. S/ 80 por día">
-            </div>
-            <div class="field">
-              <label for="publish-schedule">Horario</label>
-              <input id="publish-schedule" name="schedule" maxlength="60" placeholder="Ej. Sábado desde las 8:00 a. m.">
-            </div>
-          </div>
-          <div class="field">
-            <label for="publish-description">Descripción *</label>
-            <textarea id="publish-description" name="description" required maxlength="800" rows="5" placeholder="Explica qué se necesita, dónde y qué debe saber hacer la persona."></textarea>
-          </div>
-          <button class="primary-button" type="submit">Publicar trabajo</button>
-        </form>
-
-        <section class="my-jobs" aria-labelledby="my-jobs-title">
-          <div class="section-heading">
-            <h2 id="my-jobs-title">Mis anuncios</h2>
-            <span id="my-job-count"></span>
-          </div>
-          <div id="my-job-list"></div>
-        </section>
-      </div>
-    </section>
-
-    <section class="view" id="mensajes-view" aria-labelledby="mensajes-title">
-      <div class="container messages-page">
-        <div class="messages-heading">
-          <div>
-            <p class="kicker">Buzón personal</p>
-            <h1 id="mensajes-title">Mensajes</h1>
-          </div>
-        </div>
-        <div class="messenger">
-          <aside class="conversation-list" aria-label="Conversaciones">
-            <div id="conversation-list"></div>
-          </aside>
-          <section class="chat-panel" aria-label="Chat">
-            <div id="chat-empty" class="chat-empty">
-              <div class="chat-empty-symbol" aria-hidden="true">●</div>
-              <h2>Selecciona una conversación</h2>
-              <p>Las postulaciones y respuestas aparecerán aquí.</p>
-            </div>
-            <div id="chat-active" hidden>
-              <header class="chat-header">
-                <div>
-                  <strong id="chat-name"></strong>
-                  <p id="chat-job"></p>
-                </div>
-              </header>
-              <div class="chat-messages" id="chat-messages" aria-live="polite"></div>
-              <form class="chat-form" id="chat-form">
-                <label class="sr-only" for="chat-input">Escribe un mensaje</label>
-                <input id="chat-input" autocomplete="off" maxlength="2000" required placeholder="Escribe un mensaje...">
-                <button type="submit" aria-label="Enviar mensaje">Enviar</button>
-              </form>
-            </div>
-          </section>
-        </div>
-      </div>
-    </section>
+    </div>
   </main>
 
-  <dialog id="auth-dialog" aria-labelledby="auth-title">
+  <dialog id="account-dialog" aria-labelledby="account-dialog-title">
     <button class="dialog-close" type="button" data-close-dialog aria-label="Cerrar">×</button>
-    <div id="auth-content"></div>
-  </dialog>
-
-  <dialog id="job-dialog" aria-labelledby="job-dialog-title">
-    <button class="dialog-close" type="button" data-close-dialog aria-label="Cerrar">×</button>
-    <div id="job-dialog-content"></div>
+    <div id="account-content"></div>
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="script.js"></script>
+  <script src="landing.js"></script>
 </body>
 </html>

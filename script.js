@@ -6,6 +6,7 @@ const STORAGE = {
   messages: "encuentralab_messages"
 };
 const MAX_JOB_APPLICANTS = 10;
+const pageType = document.body.dataset.jobType;
 
 function read(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
@@ -22,7 +23,7 @@ let users = read(STORAGE.users, []);
 let applications = read(STORAGE.applications, []);
 let messages = read(STORAGE.messages, []);
 let currentUser = read(STORAGE.current, null);
-let selectedType = null;
+let profile = null;
 let activeConversation = null;
 let messageStream = null;
 let messageUpdateVersion = 0;
@@ -31,6 +32,7 @@ const views = document.querySelectorAll(".view");
 const accountButton = document.querySelector("#account-button");
 const authDialog = document.querySelector("#auth-dialog");
 const jobDialog = document.querySelector("#job-dialog");
+const profileDialog = document.querySelector("#profile-dialog");
 const toast = document.querySelector("#toast");
 
 function esc(value) {
@@ -55,68 +57,45 @@ function requireUser(action) {
   return false;
 }
 function switchView(name) {
+  if (["anunciar", "perfil", "mensajes"].includes(name) && !requireUser(name === "anunciar" ? "publicar" : name)) return;
   document.body.classList.toggle("authenticated", Boolean(currentUser));
   views.forEach((view) => view.classList.toggle("active", view.id === `${name}-view`));
+  document.querySelectorAll(".nav-link").forEach((link) => link.classList.toggle("active", link.dataset.view === name));
   window.scrollTo({ top: 0, behavior: "smooth" });
   if (name === "buscar") loadServerJobs(true);
   if (name === "mensajes") renderConversations();
   if (name === "anunciar") renderMyJobs();
-  if (name === "dashboard") updateWelcomeCounts();
+  if (name === "perfil") loadServerProfile();
 }
 
 document.querySelectorAll("[data-view]").forEach((button) => button.addEventListener("click", () => switchView(button.dataset.view)));
-document.querySelector("#entry-login").addEventListener("click", () => openAuth("login"));
-document.querySelector("#entry-register").addEventListener("click", () => openAuth("register"));
-document.querySelector("#entry-publish").addEventListener("click", () => openAuth("publish"));
-document.querySelectorAll("[data-select-type]").forEach((button) => button.addEventListener("click", () => {
-  selectedType = button.dataset.selectType;
-  document.querySelectorAll(".type-button").forEach((item) => item.classList.toggle("active", item.dataset.type === selectedType));
-  renderJobs();
-  switchView("buscar");
-}));
 
-function normalize(value) {
-  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-}
 function getVisibleJobs() {
-  const text = normalize(document.querySelector("#search-text").value.trim());
-  const city = normalize(document.querySelector("#search-city").value.trim());
   const category = document.querySelector("#category-filter").value;
   const sort = document.querySelector("#sort-filter").value;
-  let result = jobs.filter((job) => job.status === "Abierto" && job.applicantCount < job.applicantLimit);
-  if (selectedType) result = result.filter((job) => job.type === selectedType);
-  if (text) result = result.filter((job) => normalize(`${job.title} ${job.description} ${job.category}`).includes(text));
-  if (city) result = result.filter((job) => normalize(job.city).includes(city));
+  let result = jobs.filter((job) => job.type === pageType && job.status === "Abierto" && job.applicantCount < job.applicantLimit);
   if (category !== "todas") result = result.filter((job) => job.category === category);
-  result.sort((a, b) => sort === "rapidos" ? (a.type === "Rapido" ? -1 : 1) - (b.type === "Rapido" ? -1 : 1) : b.createdAt - a.createdAt);
+  if (sort === "recientes") result.sort((a, b) => b.createdAt - a.createdAt);
   return result;
 }
-function updateWelcomeCounts() {
-  const available = jobs.filter((job) => job.status === "Abierto" && job.applicantCount < job.applicantLimit);
-  document.querySelector("#quick-count").textContent = available.filter((job) => job.type === "Rapido").length;
-  document.querySelector("#formal-count").textContent = available.filter((job) => job.type === "Formal").length;
-}
 function renderJobs() {
-  updateWelcomeCounts();
-  document.querySelectorAll(".type-button").forEach((button) => {
-    button.classList.toggle("active", button.dataset.type === selectedType);
-  });
   const result = getVisibleJobs();
   document.querySelector("#result-count").textContent = `${result.length} ${result.length === 1 ? "oportunidad" : "oportunidades"}`;
   const grid = document.querySelector("#job-grid");
   if (!result.length) {
-    const hasAvailableJobs = jobs.some((job) => job.status === "Abierto" && job.applicantCount < job.applicantLimit);
+    const hasAvailableJobs = jobs.some((job) => job.type === pageType && job.status === "Abierto" && job.applicantCount < job.applicantLimit);
+    const hasJobsInMode = jobs.some((job) => job.type === pageType);
     grid.innerHTML = hasAvailableJobs
       ? `<div class="empty-state"><h3>No encontramos coincidencias</h3><p>Cambia los filtros o prueba con otro distrito.</p></div>`
-      : jobs.length
+      : hasJobsInMode
         ? `<div class="empty-state"><h3>No hay trabajos disponibles</h3><p>Los anuncios se ocultan al alcanzar el máximo de postulantes que eligió quien los publicó.</p></div>`
-        : `<div class="empty-state"><h3>Aún no hay trabajos publicados</h3><p>Las ofertas aparecerán aquí cuando una persona publique una oportunidad.</p></div>`;
+        : `<div class="empty-state"><h3>Aún no hay oportunidades</h3><p>Las ofertas de esta modalidad aparecerán aquí cuando publiquen un trabajo.</p></div>`;
     return;
   }
   grid.innerHTML = result.map((job) => `
     <article class="job-card">
       <div class="job-card-head">
-        <div class="job-types"><span class="pill ${job.type === "Rapido" ? "pill-rapido" : "pill-formal"}">${job.type === "Rapido" ? "Trabajo rápido" : "Trabajo formal"}</span><span class="pill pill-formal">${esc(job.category)}</span></div>
+        <div class="job-types"><span class="pill pill-formal">${esc(job.category)}</span></div>
       </div>
       <h3>${esc(job.title)}</h3>
       <p class="job-meta">${esc(job.city)} · Publicado por ${esc(job.ownerName)}</p>
@@ -128,20 +107,8 @@ function renderJobs() {
     </article>`).join("");
 }
 
-document.querySelector("#search-form").addEventListener("submit", (event) => {
-  event.preventEvent?.();
-  event.preventDefault();
-  renderJobs();
-  document.querySelector(".listings-section").scrollIntoView({ behavior: "smooth" });
-});
-document.querySelectorAll(".type-button").forEach((button) => button.addEventListener("click", () => {
-  selectedType = button.dataset.type;
-  renderJobs();
-}));
 document.querySelector("#category-filter").addEventListener("change", renderJobs);
 document.querySelector("#sort-filter").addEventListener("change", renderJobs);
-document.querySelector("#search-text").addEventListener("input", renderJobs);
-document.querySelector("#search-city").addEventListener("input", renderJobs);
 
 document.querySelector("#job-grid").addEventListener("click", (event) => {
   const button = event.target.closest("[data-job-detail]");
@@ -179,6 +146,12 @@ function openJobDetail(jobId) {
 
 async function applyForJob(jobId) {
   if (!requireUser("postularme")) return;
+  if (!profile?.district) {
+    jobDialog.close();
+    showToast("Completa tu distrito en Mi perfil antes de postularte.");
+    switchView("perfil");
+    return;
+  }
   const response = await fetch("/api/applications", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -190,6 +163,12 @@ async function applyForJob(jobId) {
       jobDialog.close();
       await loadServerJobs();
       openJobDetail(jobId);
+      return;
+    }
+    if (result.code === "PROFILE_REQUIRED") {
+      jobDialog.close();
+      showToast(result.error);
+      switchView("perfil");
       return;
     }
     showToast(result.error);
@@ -214,7 +193,7 @@ document.querySelector("#publish-form").addEventListener("submit", async (event)
   const data = new FormData(form);
   const payload = {
     title: data.get("title").trim(),
-    type: data.get("type"),
+    type: pageType,
     category: data.get("category"),
     applicantLimit: Number(data.get("applicantLimit")),
     city: data.get("city").trim(),
@@ -246,8 +225,113 @@ document.querySelector("#publish-form").addEventListener("submit", async (event)
   }
 });
 
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("No se pudo leer el archivo."));
+    reader.readAsDataURL(file);
+  });
+}
+
+document.querySelector("#profile-photo").addEventListener("change", async (event) => {
+  const file = event.currentTarget.files[0];
+  if (!file) return;
+  try {
+    document.querySelector("#profile-photo-preview").src = await readFileAsDataUrl(file);
+  } catch {
+    showToast("No se pudo abrir la imagen seleccionada.");
+  }
+});
+
+document.querySelector("#profile-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!requireUser("perfil")) return;
+  const form = event.currentTarget;
+  const button = form.querySelector('button[type="submit"]');
+  const photoFile = document.querySelector("#profile-photo").files[0];
+  const cvFile = document.querySelector("#profile-cv").files[0];
+  const payload = { type: pageType, district: document.querySelector("#profile-district").value.trim() };
+  try {
+    if (photoFile) {
+      if (photoFile.size > 2 * 1024 * 1024) {
+        showToast("La foto debe pesar como máximo 2 MB.");
+        return;
+      }
+      payload.photoData = (await readFileAsDataUrl(photoFile)).split(",", 2)[1];
+      payload.photoMime = photoFile.type;
+    }
+    if (cvFile) {
+      if (cvFile.size > 5 * 1024 * 1024) {
+        showToast("El CV debe pesar como máximo 5 MB.");
+        return;
+      }
+      if (cvFile.type !== "application/pdf" && !cvFile.name.toLowerCase().endsWith(".pdf")) {
+        showToast("El CV debe ser un archivo PDF.");
+        return;
+      }
+      payload.cvData = (await readFileAsDataUrl(cvFile)).split(",", 2)[1];
+      payload.cvName = cvFile.name;
+    }
+  } catch {
+    showToast("No se pudieron leer los archivos seleccionados.");
+    return;
+  }
+  button.disabled = true;
+  try {
+    const response = await fetch("/api/profiles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      showToast(result.error || "No se pudo guardar tu perfil.");
+      return;
+    }
+    form.reset();
+    profile = result.profile;
+    updateProfileForm();
+    showToast("Perfil guardado para esta modalidad.");
+  } catch {
+    showToast("No se pudo guardar tu perfil. Revisa tu conexión e inténtalo otra vez.");
+  } finally {
+    button.disabled = false;
+  }
+});
+
+async function loadServerProfile() {
+  if (!currentUser) return;
+  try {
+    const response = await fetch(`/api/profiles?type=${encodeURIComponent(pageType)}`);
+    const result = await response.json();
+    if (!response.ok) {
+      showToast(result.error || "No se pudo cargar tu perfil.");
+      return;
+    }
+    profile = result.profile;
+    updateProfileForm();
+  } catch {
+    showToast("No se pudo cargar tu perfil. Revisa tu conexión.");
+  }
+}
+
+function updateProfileForm() {
+  if (!profile) return;
+  document.querySelector("#profile-district").value = profile.district || "";
+  document.querySelector("#profile-photo-preview").src = profile.photoData
+    ? `data:${profile.photoMime};base64,${profile.photoData}`
+    : "assets/no-profile.svg";
+  const cvLink = document.querySelector("#profile-cv-current");
+  cvLink.hidden = !profile.cvName;
+  if (profile.cvName) {
+    cvLink.href = `/api/profiles/${encodeURIComponent(currentUser.id)}/cv?type=${encodeURIComponent(pageType)}`;
+    cvLink.textContent = `Ver CV guardado: ${profile.cvName}`;
+  }
+}
+
 function renderMyJobs() {
-  const mine = currentUser ? jobs.filter((job) => job.ownerId === currentUser.id) : [];
+  const mine = currentUser ? jobs.filter((job) => job.ownerId === currentUser.id && job.type === pageType) : [];
   document.querySelector("#my-job-count").textContent = `${mine.length} anuncios`;
   document.querySelector("#my-job-list").innerHTML = mine.length ? mine.map((job) => {
     const applicants = applications.filter((item) => item.jobId === job.id);
@@ -319,8 +403,11 @@ function showApplicants(jobId, notice = "") {
     <h2 id="job-dialog-title">Postulantes</h2>
     <p>${esc(job.title)} · ${applicants.length}/${job.applicantLimit} postulantes</p>
     ${notice ? `<p class="owner-notice" role="status">${esc(notice)}</p>` : ""}
-    ${applicants.length ? applicants.map((item) => `<div class="my-job-row"><div><strong>${esc(item.applicantName)}</strong><span>${esc(item.applicantDistrict || "Distrito no registrado")} · ${esc(item.status)}</span></div><button class="secondary-button" type="button" data-chat-applicant="${esc(item.applicantId)}" data-job="${esc(job.id)}">Abrir chat</button><button class="secondary-button" type="button" data-remove-application="${esc(item.id)}" data-job="${esc(job.id)}" data-applicant-name="${esc(item.applicantName)}">Quitar</button></div>`).join("") : `<div class="empty-state"><p>No hay postulaciones todavía.</p></div>`}`;
+    ${applicants.length ? applicants.map((item) => `<div class="my-job-row"><div><strong>${esc(item.applicantName)}</strong><span>${esc(item.applicantDistrict || "Distrito no registrado")} · ${esc(item.status)}</span></div><button class="secondary-button" type="button" data-view-profile="${esc(item.applicantId)}" data-job="${esc(job.id)}">Ver perfil</button><button class="secondary-button" type="button" data-chat-applicant="${esc(item.applicantId)}" data-job="${esc(job.id)}">Abrir chat</button><button class="secondary-button delete-button" type="button" data-remove-application="${esc(item.id)}" data-job="${esc(job.id)}" data-applicant-name="${esc(item.applicantName)}">Eliminar</button></div>`).join("") : `<div class="empty-state"><p>No hay postulaciones todavía.</p></div>`}`;
   jobDialog.showModal();
+  jobDialog.querySelectorAll("[data-view-profile]").forEach((button) => button.addEventListener("click", () => {
+    showApplicantProfile(button.dataset.viewProfile, button.dataset.job);
+  }));
   jobDialog.querySelectorAll("[data-chat-applicant]").forEach((button) => button.addEventListener("click", () => {
     jobDialog.close();
     const applicant = applicants.find((item) => item.applicantId === button.dataset.chatApplicant);
@@ -331,8 +418,37 @@ function showApplicants(jobId, notice = "") {
   }));
 }
 
+async function showApplicantProfile(applicantId, jobId) {
+  try {
+    const response = await fetch(`/api/profiles/${encodeURIComponent(applicantId)}?type=${encodeURIComponent(pageType)}&jobId=${encodeURIComponent(jobId)}`);
+    const result = await response.json();
+    if (!response.ok) {
+      showToast(result.error || "No se pudo cargar el perfil.");
+      return;
+    }
+    const applicantProfile = result.profile;
+    const photo = applicantProfile.photoData
+      ? `data:${applicantProfile.photoMime};base64,${applicantProfile.photoData}`
+      : "assets/no-profile.svg";
+    const cv = applicantProfile.cvName
+      ? `<a class="profile-cv-link" href="/api/profiles/${encodeURIComponent(applicantId)}/cv?type=${encodeURIComponent(pageType)}&jobId=${encodeURIComponent(jobId)}" target="_blank" rel="noopener">Ver CV en PDF</a>`
+      : `<p>Este usuario aún no ha subido un CV.</p>`;
+    document.querySelector("#profile-dialog-content").innerHTML = `
+      <img class="profile-avatar" src="${photo}" alt="Foto de ${esc(applicantProfile.name)}">
+      <h2 id="profile-dialog-title">${esc(applicantProfile.name)}</h2>
+      <p><strong>Distrito:</strong> ${esc(applicantProfile.district || "No indicado")}</p>${cv}
+      <button class="secondary-button" type="button" id="back-to-applicants">Volver a postulantes</button>`;
+    profileDialog.showModal();
+    document.querySelector("#back-to-applicants").addEventListener("click", () => {
+      profileDialog.close();
+    });
+  } catch {
+    showToast("No se pudo cargar el perfil. Inténtalo otra vez.");
+  }
+}
+
 async function removeApplicant(applicationId, jobId, applicantName) {
-  if (!confirm(`¿Quitar la postulación de ${applicantName}? Se liberará un cupo y se conservará el historial del chat.`)) return;
+  if (!confirm(`¿Eliminar la postulación de ${applicantName}? Se liberará un cupo y se conservará el historial del chat.`)) return;
   try {
     const response = await fetch(`/api/applications/${encodeURIComponent(applicationId)}`, { method: "DELETE" });
     const result = await response.json();
@@ -410,9 +526,10 @@ function renderConversations() {
     const otherId = ids.find((item) => item !== currentUser?.id);
     const job = jobs.find((item) => item.id === jobId);
     const chatMessages = messages.filter((item) => item.conversationId === id);
+    if (chatMessages[0]?.jobType !== pageType) return null;
     const last = chatMessages[chatMessages.length - 1];
     return { id, jobId, otherId, otherName: conversationPeerName(id), jobTitle: job?.title || chatMessages[0]?.jobTitle || "Trabajo", last };
-  }).filter((item) => item.otherId);
+  }).filter((item) => item?.otherId);
   if (activeConversation && !conversations.some((item) => item.id === activeConversation)) {
     activeConversation = null;
   }
@@ -497,6 +614,7 @@ async function loadServerMessages() {
       conversationId: message.conversation_id,
       senderId: message.sender_id,
       text: message.text,
+      jobType: message.job_type,
       at: message.created_at,
       senderName: message.sender_name,
       jobTitle: message.job_title,
@@ -527,6 +645,7 @@ function connectMessageStream() {
         conversationId: message.conversation_id,
         senderId: message.sender_id,
         text: message.text,
+        jobType: message.job_type,
         at: message.created_at,
         senderName: message.sender_name,
         jobTitle: message.job_title,
@@ -556,7 +675,8 @@ async function loadServerApplications() {
       jobId: application.job_id,
       applicantId: application.applicant_id,
       applicantName: application.account_name || application.applicant_name,
-      applicantDistrict: application.account_district,
+      applicantDistrict: application.applicant_district || application.account_district,
+      jobType: application.job_type,
       status: application.status,
       at: application.created_at
     }));
@@ -648,9 +768,9 @@ function openAuth(action) {
       write(STORAGE.current, currentUser);
       accountButton.textContent = currentUser.name.split(" ")[0];
       authDialog.close();
-      await Promise.all([loadServerJobs(), loadServerApplications(), loadServerMessages()]);
+      await Promise.all([loadServerJobs(), loadServerApplications(), loadServerMessages(), loadServerProfile()]);
       connectMessageStream();
-      switchView(action === "publish" ? "anunciar" : "dashboard");
+      switchView(action === "publish" && pageType === "Rapido" ? "anunciar" : "buscar");
       showToast(`Bienvenido, ${currentUser.name}.`);
       return;
     }
@@ -696,9 +816,10 @@ function openUserMenu() {
     currentUser = null;
     write(STORAGE.current, null);
     activeConversation = null;
+    profile = null;
     accountButton.textContent = "Entrar";
     authDialog.close();
-    switchView("inicio");
+    switchView("buscar");
     showToast("Sesión cerrada.");
   });
 }
@@ -746,21 +867,22 @@ async function restoreSecureSession() {
       currentUser = result.user;
       write(STORAGE.current, currentUser);
       accountButton.textContent = currentUser.name.split(" ")[0];
-      await Promise.all([loadServerApplications(), loadServerMessages()]);
+      await Promise.all([loadServerApplications(), loadServerMessages(), loadServerProfile()]);
       connectMessageStream();
-      switchView("dashboard");
+      switchView("buscar");
     } else {
       currentUser = null;
+      profile = null;
       write(STORAGE.current, null);
       accountButton.textContent = "Entrar";
-      switchView("inicio");
+      switchView("buscar");
     }
   } catch {
     if (currentUser) {
       accountButton.textContent = currentUser.name.split(" ")[0];
-      switchView("dashboard");
+      switchView("buscar");
     } else {
-      switchView("inicio");
+      switchView("buscar");
     }
   }
 }
@@ -770,6 +892,10 @@ loadServerJobs();
 loadServerMessages();
 renderJobs();
 renderConversations();
+if (new URLSearchParams(window.location.search).get("login") === "1") {
+  history.replaceState(null, "", window.location.pathname);
+  openAuth("login");
+}
 window.setInterval(() => {
   if (currentUser && !document.hidden) loadServerMessages();
 }, 5000);

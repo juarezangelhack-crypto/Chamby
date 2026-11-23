@@ -327,8 +327,8 @@ class Handler(SimpleHTTPRequestHandler):
         if "@" not in email or "." not in email.rsplit("@", 1)[1]:
             self.respond(400, {"error": "Correo electrónico inválido"})
             return
-        if len(password) < 10 or not any(c.isupper() for c in password) or not any(c.isdigit() for c in password):
-            self.respond(400, {"error": "La contraseña debe tener 10 caracteres, una mayúscula y un número"})
+        if len(password) < 6:
+            self.respond(400, {"error": "La contraseña debe tener al menos 6 caracteres"})
             return
         if district_key not in LIMA_DISTRICTS:
             self.respond(400, {"error": "Selecciona un distrito de Lima"})

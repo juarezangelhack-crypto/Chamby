@@ -545,7 +545,7 @@ function openAuth(action) {
       <div class="field auth-name-field" ${mode === "login" ? "hidden" : ""}><label for="auth-name">Nombre completo</label><input id="auth-name" maxlength="60"></div>
       <div class="field auth-district-field" ${mode === "login" ? "hidden" : ""}><label for="auth-district">Distrito de Lima</label><input id="auth-district" list="district-list"></div>
       <div class="field"><label for="auth-email">Correo electrónico</label><input id="auth-email" type="email" autocomplete="email" required></div>
-      <div class="field"><label for="auth-password">Contraseña</label><input id="auth-password" type="password" autocomplete="${mode === "register" ? "new-password" : "current-password"}" minlength="${mode === "register" ? 10 : 6}" required></div>
+      <div class="field"><label for="auth-password">Contraseña</label><input id="auth-password" type="password" autocomplete="${mode === "register" ? "new-password" : "current-password"}" minlength="6" required></div>
       <button class="auth-recovery" id="forgot-password" type="button" ${mode === "register" ? "hidden" : ""}>¿Olvidaste tu contraseña?</button>
       <p class="auth-feedback" id="auth-feedback" role="status" aria-live="polite" hidden></p>
       <button class="primary-button" id="auth-submit" type="submit">${mode === "register" ? "Crear cuenta" : action === "publish" ? "Continuar" : "Iniciar sesión"}</button>
@@ -594,7 +594,6 @@ function openAuth(action) {
     authFeedback.classList.remove("error");
     const passwordInput = document.querySelector("#auth-password");
     passwordInput.autocomplete = mode === "register" ? "new-password" : "current-password";
-    passwordInput.minLength = mode === "register" ? 10 : 6;
     document.querySelector("#auth-title").textContent = mode === "register" ? "Crea tu cuenta en Chambly" : "Accede a Chambly";
     document.querySelector("#auth-submit").textContent = mode === "register" ? "Crear cuenta" : action === "publish" ? "Continuar" : "Iniciar sesión";
   }));

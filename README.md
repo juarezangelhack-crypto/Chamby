@@ -104,6 +104,8 @@ Abre <http://127.0.0.1:4173/>. El servidor usa `PORT` si está definido; por def
 
 Abre una terminal en la carpeta extraída que contiene `server.py` y ejecuta los comandos de arriba. **No uses `python -m http.server`**: ese comando solo sirve archivos estáticos y no ejecuta la API. Si el terminal muestra `GET /api/jobs 404`, detén ese servidor con `Ctrl+C` y vuelve a iniciar con `python server.py`. Chamby mostrará este aviso si detecta un servidor estático.
 
+Si aparece un error de Firebase, configura la **clave web del mismo proyecto** de Firebase en la misma ventana de PowerShell donde inicias `python server.py`. En Firebase Console, confirma que **Authentication → Sign-in method → Correo electrónico/contraseña** esté habilitado y que la cuenta exista en ese proyecto. Un mensaje con código de error identifica si el problema es la clave, el proveedor o la cuenta; no compartas ni publiques la clave.
+
 La base local se crea como `encuentralab.db` junto al servidor por defecto. Se puede cambiar con `DATA_DIR` o `DATABASE_PATH`. Railway conserva la base de producción en su volumen persistente; no reemplaces ese archivo con una base local.
 
 ## Comprobaciones

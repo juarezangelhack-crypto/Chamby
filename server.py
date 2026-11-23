@@ -154,21 +154,32 @@ def firebase_request(method, payload):
 def firebase_error_response(code):
     if code == "EMAIL_EXISTS":
         return 409, {"error": "Ya existe una cuenta con ese correo."}
-    if code in {"INVALID_LOGIN_CREDENTIALS", "EMAIL_NOT_FOUND", "INVALID_PASSWORD", "USER_DISABLED"}:
+    if code in {"INVALID_LOGIN_CREDENTIALS", "EMAIL_NOT_FOUND", "INVALID_PASSWORD", "USER_NOT_FOUND"}:
         return 401, {"error": "Correo o contraseña incorrectos."}
+    if code == "USER_DISABLED":
+        return 403, {"error": "Esta cuenta está deshabilitada. Contacta al administrador del proyecto."}
+    if code in {"INVALID_EMAIL", "MISSING_EMAIL"}:
+        return 400, {"error": "Escribe un correo electrónico válido."}
+    if code == "MISSING_PASSWORD":
+        return 400, {"error": "Ingresa tu contraseña."}
     if code.startswith("WEAK_PASSWORD"):
         return 400, {"error": "La contraseña no cumple los requisitos de Firebase."}
     if code in {"OPERATION_NOT_ALLOWED", "CONFIGURATION_NOT_FOUND"}:
         return 503, {"error": "Activa Email/Contraseña en la configuración de autenticación de Firebase."}
-    if code == "API_KEY_INVALID":
-        return 503, {"error": "La clave web de Firebase no es válida. Revisa FIREBASE_API_KEY."}
+    if code in {"API_KEY_INVALID", "API_KEY_SERVICE_BLOCKED", "PROJECT_NOT_FOUND"}:
+        return 503, {"error": "La clave web no corresponde a un proyecto Firebase disponible. Revisa FIREBASE_API_KEY y las restricciones de la clave."}
     if code == "FIREBASE_NOT_CONFIGURED":
         return 503, {"error": "Configura FIREBASE_API_KEY en el entorno del servidor para habilitar el inicio de sesión."}
     if code == "INVALID_CONTINUE_URI":
         return 503, {"error": "Agrega el dominio de Chamby a los dominios autorizados de Firebase."}
+    if code == "TOO_MANY_ATTEMPTS_TRY_LATER":
+        return 429, {"error": "Firebase bloqueó temporalmente los intentos. Espera un momento e inténtalo de nuevo."}
     if code == "FIREBASE_UNAVAILABLE":
         return 503, {"error": "No se pudo conectar con Firebase. Inténtalo de nuevo."}
-    return 400, {"error": "Firebase no pudo completar la solicitud. Revisa la configuración del proyecto."}
+    safe_code = "".join(char for char in str(code).split(":", 1)[0] if char in "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")
+    if not safe_code:
+        safe_code = "FIREBASE_ERROR"
+    return 400, {"error": f"Firebase rechazó la solicitud (código {safe_code}). Revisa la clave, el proyecto y el proveedor Correo/contraseña."}
 
 class Handler(SimpleHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
@@ -612,7 +623,7 @@ class Handler(SimpleHTTPRequestHandler):
                 "continueUrl": os.getenv("PUBLIC_URL", "https://chamby-production.up.railway.app/?verified=1")
             })
         except FirebaseError as error:
-            print(f"Firebase registration error: {error.code}")
+            print(f"Firebase registration error: {error.code.split(':', 1)[0].strip()}")
             self.respond(*firebase_error_response(error.code))
             return
         except sqlite3.Error:
@@ -632,6 +643,7 @@ class Handler(SimpleHTTPRequestHandler):
             })
             account = firebase_request("accounts:lookup", {"idToken": firebase_user["idToken"]})
         except FirebaseError as error:
+            print(f"Firebase login error: {error.code.split(':', 1)[0].strip()}")
             time.sleep(0.25)
             self.respond(*firebase_error_response(error.code))
             return

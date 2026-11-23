@@ -6,27 +6,17 @@ const STORAGE = {
   messages: "encuentralab_messages"
 };
 
-const seedJobs = [
-  { id: "demo-1", title: "Ayuda para mudanza este sábado", type: "Rapido", category: "Servicios", city: "Miraflores", pay: "S/ 95 por día", schedule: "Sábado, 8:00 a. m.", description: "Necesito dos personas responsables para cargar cajas y muebles livianos. No se requiere experiencia.", ownerId: "demo-owner", ownerName: "Carlos Rodríguez", status: "Abierto", createdAt: 10 },
-  { id: "demo-2", title: "Auxiliar de tienda", type: "Formal", category: "Comercio", city: "San Isidro", pay: "S/ 1.800 mensuales", schedule: "Turnos rotativos", description: "Buscamos una persona amable para atención a clientes, organización de productos y caja.", ownerId: "demo-owner", ownerName: "Mercado Sol", status: "Abierto", createdAt: 9 },
-  { id: "demo-3", title: "Tutor de matemáticas", type: "Rapido", category: "Educación", city: "Surquillo", pay: "S/ 30 por hora", schedule: "Tardes", description: "Se necesita apoyo con álgebra básica para un estudiante de secundaria, dos veces por semana.", ownerId: "demo-owner", ownerName: "Andrea Pérez", status: "Abierto", createdAt: 8 },
-  { id: "demo-4", title: "Técnico de soporte", type: "Formal", category: "Tecnología", city: "San Borja", pay: "S/ 3.200 mensuales", schedule: "Tiempo completo", description: "Empresa local busca apoyo para instalación de equipos, atención remota y mantenimiento básico.", ownerId: "demo-owner", ownerName: "Red Norte", status: "Abierto", createdAt: 7 },
-  { id: "demo-5", title: "Cuidar a adulto mayor", type: "Rapido", category: "Servicios", city: "La Molina", pay: "S/ 120 por jornada", schedule: "Domingo, 12 horas", description: "Se busca acompañamiento tranquilo y responsable durante una jornada familiar.", ownerId: "demo-owner", ownerName: "Familia Moreno", status: "Abierto", createdAt: 6 },
-  { id: "demo-6", title: "Operario de construcción", type: "Formal", category: "Construcción", city: "Los Olivos", pay: "S/ 1.700 mensuales", schedule: "Lunes a sábado", description: "Se requiere una persona con experiencia en acabados y disposición para trabajo presencial.", ownerId: "demo-owner", ownerName: "Construcciones Andes", status: "Abierto", createdAt: 5 }
-];
-
 function read(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
   catch { return fallback; }
 }
 function write(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
 
-if (!localStorage.getItem(STORAGE.jobs)) write(STORAGE.jobs, seedJobs);
 if (!localStorage.getItem(STORAGE.users)) write(STORAGE.users, []);
 if (!localStorage.getItem(STORAGE.applications)) write(STORAGE.applications, []);
 if (!localStorage.getItem(STORAGE.messages)) write(STORAGE.messages, []);
 
-let jobs = read(STORAGE.jobs, seedJobs);
+let jobs = [];
 let users = read(STORAGE.users, []);
 let applications = read(STORAGE.applications, []);
 let messages = read(STORAGE.messages, []);
@@ -113,7 +103,10 @@ function renderJobs() {
   document.querySelector("#result-count").textContent = `${result.length} ${result.length === 1 ? "oportunidad" : "oportunidades"}`;
   const grid = document.querySelector("#job-grid");
   if (!result.length) {
-    grid.innerHTML = `<div class="empty-state"><h3>No encontramos oportunidades</h3><p>Cambia los filtros o publica una nueva oportunidad.</p></div>`;
+    const hasOpenJobs = jobs.some((job) => job.status === "Abierto");
+    grid.innerHTML = hasOpenJobs
+      ? `<div class="empty-state"><h3>No encontramos coincidencias</h3><p>Cambia los filtros o prueba con otro distrito.</p></div>`
+      : `<div class="empty-state"><h3>Aún no hay trabajos publicados</h3><p>Las ofertas aparecerán aquí cuando una persona publique una oportunidad.</p></div>`;
     return;
   }
   grid.innerHTML = result.map((job) => `
@@ -187,7 +180,13 @@ async function applyForJob(jobId) {
 document.querySelector("#publish-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!requireUser("publicar")) return;
-  const data = new FormData(event.currentTarget);
+  const form = event.currentTarget;
+  const submitButton = form.querySelector('button[type="submit"]');
+  if (submitButton.disabled) return;
+  const submitLabel = submitButton.textContent;
+  submitButton.disabled = true;
+  submitButton.textContent = "Publicando...";
+  const data = new FormData(form);
   const payload = {
     title: data.get("title").trim(),
     type: data.get("type"),
@@ -197,18 +196,28 @@ document.querySelector("#publish-form").addEventListener("submit", async (event)
     schedule: data.get("schedule").trim() || "Por acordar",
     description: data.get("description").trim()
   };
-  const response = await fetch("/api/jobs", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-  const result = await response.json();
-  if (!response.ok) { showToast(result.error); return; }
-  await loadServerJobs();
-  event.currentTarget.reset();
-  renderJobs();
-  renderMyJobs();
-  showToast("Tu trabajo fue publicado.");
+  try {
+    const response = await fetch("/api/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      showToast(result.error);
+      return;
+    }
+    await loadServerJobs();
+    form.reset();
+    renderJobs();
+    renderMyJobs();
+    showToast("Tu trabajo fue publicado.");
+  } catch {
+    showToast("No se pudo publicar el trabajo. Revisa tu conexión e inténtalo otra vez.");
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = submitLabel;
+  }
 });
 
 function renderMyJobs() {
@@ -484,9 +493,12 @@ document.querySelectorAll("dialog").forEach((dialog) => dialog.addEventListener(
 async function loadServerJobs() {
   try {
     const response = await fetch("/api/jobs");
-    if (!response.ok) return;
+    if (!response.ok) {
+      showToast("No se pudieron cargar los trabajos. Inténtalo de nuevo.");
+      return;
+    }
     const result = await response.json();
-    const serverJobs = result.jobs.map((job) => ({
+    jobs = result.jobs.map((job) => ({
       id: job.id,
       title: job.title,
       type: job.type,
@@ -500,11 +512,9 @@ async function loadServerJobs() {
       status: job.status,
       createdAt: job.created_at
     }));
-    const seedIds = new Set(seedJobs.map((job) => job.id));
-    jobs = [...serverJobs, ...seedJobs.filter((job) => !serverJobs.some((serverJob) => serverJob.id === job.id))];
     renderJobs();
   } catch {
-    // The demo opportunities remain available if the server cannot be reached.
+    showToast("No se pudieron cargar los trabajos. Revisa tu conexión e inténtalo de nuevo.");
   }
 }
 

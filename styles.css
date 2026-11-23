@@ -129,6 +129,7 @@ h2 { margin: 0; font-size: clamp(1.7rem, 4vw, 2.5rem); }
 .conversation-item span { display: block; margin-top: 3px; color: var(--muted); font-size: .82rem; }
 .chat-panel { min-width: 0; }
 .chat-empty { height: 100%; display: grid; place-content: center; text-align: center; color: var(--muted); }
+.chat-empty[hidden] { display: none; }
 .chat-empty-symbol { width: 54px; height: 54px; display: grid; place-items: center; margin: 0 auto 12px; color: var(--blue); background: #edf3f6; border-radius: 50%; }
 .chat-empty h2 { color: var(--ink); font-size: 1.3rem; }
 #chat-active { height: 520px; display: grid; grid-template-rows: auto 1fr auto; }

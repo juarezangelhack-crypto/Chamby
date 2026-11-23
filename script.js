@@ -31,7 +31,7 @@ let users = read(STORAGE.users, []);
 let applications = read(STORAGE.applications, []);
 let messages = read(STORAGE.messages, []);
 let currentUser = read(STORAGE.current, null);
-let selectedType = "todos";
+let selectedType = null;
 let activeConversation = null;
 
 const views = document.querySelectorAll(".view");
@@ -59,18 +59,29 @@ function save() {
 }
 function requireUser(action) {
   if (currentUser) return true;
-  openAuth(action);
+  openAuth(action === "publicar" ? "publish" : "login");
   return false;
 }
 function switchView(name) {
+  document.body.classList.toggle("authenticated", Boolean(currentUser));
   views.forEach((view) => view.classList.toggle("active", view.id === `${name}-view`));
   navLinks.forEach((link) => link.classList.toggle("active", link.dataset.view === name));
   window.scrollTo({ top: 0, behavior: "smooth" });
   if (name === "mensajes") renderConversations();
   if (name === "anunciar") renderMyJobs();
+  if (name === "dashboard") updateWelcomeCounts();
 }
 
 document.querySelectorAll("[data-view]").forEach((button) => button.addEventListener("click", () => switchView(button.dataset.view)));
+document.querySelector("#entry-login").addEventListener("click", () => openAuth("login"));
+document.querySelector("#entry-register").addEventListener("click", () => openAuth("register"));
+document.querySelector("#entry-publish").addEventListener("click", () => openAuth("publish"));
+document.querySelectorAll("[data-select-type]").forEach((button) => button.addEventListener("click", () => {
+  selectedType = button.dataset.selectType;
+  document.querySelectorAll(".type-button").forEach((item) => item.classList.toggle("active", item.dataset.type === selectedType));
+  renderJobs();
+  switchView("buscar");
+}));
 
 function normalize(value) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -81,14 +92,23 @@ function getVisibleJobs() {
   const category = document.querySelector("#category-filter").value;
   const sort = document.querySelector("#sort-filter").value;
   let result = jobs.filter((job) => job.status === "Abierto");
-  if (selectedType !== "todos") result = result.filter((job) => job.type === selectedType);
+  if (selectedType) result = result.filter((job) => job.type === selectedType);
   if (text) result = result.filter((job) => normalize(`${job.title} ${job.description} ${job.category}`).includes(text));
   if (city) result = result.filter((job) => normalize(job.city).includes(city));
   if (category !== "todas") result = result.filter((job) => job.category === category);
   result.sort((a, b) => sort === "rapidos" ? (a.type === "Rapido" ? -1 : 1) - (b.type === "Rapido" ? -1 : 1) : b.createdAt - a.createdAt);
   return result;
 }
+function updateWelcomeCounts() {
+  const available = jobs.filter((job) => job.status === "Abierto");
+  document.querySelector("#quick-count").textContent = available.filter((job) => job.type === "Rapido").length;
+  document.querySelector("#formal-count").textContent = available.filter((job) => job.type === "Formal").length;
+}
 function renderJobs() {
+  updateWelcomeCounts();
+  document.querySelectorAll(".type-button").forEach((button) => {
+    button.classList.toggle("active", button.dataset.type === selectedType);
+  });
   const result = getVisibleJobs();
   document.querySelector("#result-count").textContent = `${result.length} ${result.length === 1 ? "oportunidad" : "oportunidades"}`;
   const grid = document.querySelector("#job-grid");
@@ -119,7 +139,6 @@ document.querySelector("#search-form").addEventListener("submit", (event) => {
 });
 document.querySelectorAll(".type-button").forEach((button) => button.addEventListener("click", () => {
   selectedType = button.dataset.type;
-  document.querySelectorAll(".type-button").forEach((item) => item.classList.toggle("active", item === button));
   renderJobs();
 }));
 document.querySelector("#category-filter").addEventListener("change", renderJobs);
@@ -364,21 +383,21 @@ async function loadServerMessages() {
 }
 
 function openAuth(action) {
+  let mode = action === "register" ? "register" : "login";
   document.querySelector("#auth-content").innerHTML = `
     <div class="auth-tabs">
-      <button type="button" class="active" data-auth-tab="login">Entrar</button>
-      <button type="button" data-auth-tab="register">Crear cuenta</button>
+      <button type="button" class="${mode === "login" ? "active" : ""}" data-auth-tab="login">Entrar</button>
+      <button type="button" class="${mode === "register" ? "active" : ""}" data-auth-tab="register">Crear cuenta</button>
     </div>
-    <h2 id="auth-title">Accede a Chamby</h2>
+    <h2 id="auth-title">${mode === "register" ? "Crea tu cuenta en Chambly" : "Accede a Chambly"}</h2>
     <form id="auth-form" class="publish-form" style="padding:0;border:0">
-      <div class="field auth-name-field" hidden><label for="auth-name">Nombre completo</label><input id="auth-name" maxlength="60"></div>
-      <div class="field auth-district-field" hidden><label for="auth-district">Distrito de Lima</label><input id="auth-district" list="district-list"></div>
+      <div class="field auth-name-field" ${mode === "login" ? "hidden" : ""}><label for="auth-name">Nombre completo</label><input id="auth-name" maxlength="60"></div>
+      <div class="field auth-district-field" ${mode === "login" ? "hidden" : ""}><label for="auth-district">Distrito de Lima</label><input id="auth-district" list="district-list"></div>
       <div class="field"><label for="auth-email">Correo electrónico</label><input id="auth-email" type="email" autocomplete="email" required></div>
-      <div class="field"><label for="auth-password">Contraseña</label><input id="auth-password" type="password" autocomplete="current-password" minlength="10" required></div>
-      <button class="primary-button" type="submit">${action ? "Continuar" : "Entrar"}</button>
+      <div class="field"><label for="auth-password">Contraseña</label><input id="auth-password" type="password" autocomplete="${mode === "register" ? "new-password" : "current-password"}" minlength="10" required></div>
+      <button class="primary-button" id="auth-submit" type="submit">${mode === "register" ? "Crear cuenta" : action === "publish" ? "Continuar" : "Iniciar sesión"}</button>
     </form>`;
   authDialog.showModal();
-  let mode = "login";
 
   document.querySelectorAll("[data-auth-tab]").forEach((button) => button.addEventListener("click", () => {
     mode = button.dataset.authTab;
@@ -386,6 +405,8 @@ function openAuth(action) {
     document.querySelector(".auth-name-field").hidden = mode !== "register";
     document.querySelector(".auth-district-field").hidden = mode !== "register";
     document.querySelector("#auth-password").autocomplete = mode === "register" ? "new-password" : "current-password";
+    document.querySelector("#auth-title").textContent = mode === "register" ? "Crea tu cuenta en Chambly" : "Accede a Chambly";
+    document.querySelector("#auth-submit").textContent = mode === "register" ? "Crear cuenta" : action === "publish" ? "Continuar" : "Iniciar sesión";
   }));
 
   document.querySelector("#auth-form").addEventListener("submit", async (event) => {
@@ -406,6 +427,7 @@ function openAuth(action) {
       accountButton.textContent = currentUser.name.split(" ")[0];
       authDialog.close();
       await loadServerJobs();
+      switchView(action === "publish" ? "anunciar" : "dashboard");
       showToast(`Bienvenido, ${currentUser.name}.`);
       return;
     }
@@ -427,7 +449,7 @@ function openAuth(action) {
       <button class="secondary-button" type="button" id="back-to-login">Volver a iniciar sesión</button>`;
     document.querySelector("#back-to-login").addEventListener("click", () => {
       authDialog.close();
-      openAuth("");
+      openAuth(action === "publish" ? "publish" : "login");
     });
   });
 }
@@ -449,6 +471,7 @@ function openUserMenu() {
     activeConversation = null;
     accountButton.textContent = "Entrar";
     authDialog.close();
+    switchView("inicio");
     showToast("Sesión cerrada.");
   });
 }
@@ -502,13 +525,20 @@ async function restoreSecureSession() {
       currentUser = result.user;
       write(STORAGE.current, currentUser);
       accountButton.textContent = currentUser.name.split(" ")[0];
+      switchView("dashboard");
     } else {
       currentUser = null;
       write(STORAGE.current, null);
       accountButton.textContent = "Entrar";
+      switchView("inicio");
     }
   } catch {
-    if (currentUser) accountButton.textContent = currentUser.name.split(" ")[0];
+    if (currentUser) {
+      accountButton.textContent = currentUser.name.split(" ")[0];
+      switchView("dashboard");
+    } else {
+      switchView("inicio");
+    }
   }
 }
 

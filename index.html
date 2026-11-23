@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#17324d">
-  <meta name="description" content="Conecta oportunidades laborales rápidas y formales con personas reales.">
-  <title>Chamby</title>
+  <meta name="description" content="Chambly conecta trabajos rápidos y formales en Lima.">
+  <title>Chambly | Trabajo en Lima</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -27,21 +27,74 @@
   </datalist>
   <header class="header">
     <div class="container header-inner">
-      <button class="brand" type="button" data-view="buscar" aria-label="Ir al inicio">
-        <span class="brand-symbol" aria-hidden="true">E</span>
-        <span>Chamby</span>
+      <button class="brand" type="button" data-view="dashboard" aria-label="Ir al inicio">
+        <img class="brand-image" src="assets/chambly-wordmark.png" alt="Chambly">
       </button>
       <nav class="desktop-nav" aria-label="Navegación principal">
-        <button type="button" class="nav-link active" data-view="buscar">Buscar trabajo</button>
+        <button type="button" class="nav-link active" data-view="dashboard">Inicio</button>
+        <button type="button" class="nav-link" data-view="buscar">Buscar trabajo</button>
         <button type="button" class="nav-link" data-view="anunciar">Anunciar trabajo</button>
         <button type="button" class="nav-link" data-view="mensajes">Mensajes <span class="badge" id="message-badge" hidden>0</span></button>
       </nav>
-      <button class="account-button" type="button" id="account-button">Entrar</button>
+      <button class="account-button" type="button" id="account-button">Mi cuenta</button>
     </div>
   </header>
 
   <main id="contenido">
-    <section class="view active" id="buscar-view" aria-labelledby="buscar-title">
+    <section class="view active" id="inicio-view" aria-labelledby="inicio-title">
+      <div class="entry-page">
+        <div class="entry-content">
+          <img class="entry-logo" src="assets/chambly-mark.png" alt="Logo de Chambly">
+          <h1 class="sr-only" id="inicio-title">Bienvenido a Chambly</h1>
+          <button class="entry-login" type="button" id="entry-login">Iniciar sesión</button>
+          <p>¿Aún no tienes una cuenta? ¡Créala ahora!</p>
+          <button class="entry-register" type="button" id="entry-register">Crear cuenta</button>
+          <button class="entry-publish" type="button" id="entry-publish">Empresa / Publicar aviso</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="dashboard-view" aria-labelledby="dashboard-title">
+      <div class="welcome-page">
+        <div class="container welcome-content">
+          <p class="kicker">Oportunidades en Lima</p>
+          <h1 id="dashboard-title">¡Bienvenido!</h1>
+          <p class="welcome-question">¿Qué empleo quieres encontrar hoy?</p>
+          <div class="work-choice-grid">
+            <button type="button" class="work-choice" data-select-type="Rapido">
+              <span class="choice-title">Búsqueda<br>rápida</span>
+              <span class="choice-illustration quick-illustration" aria-hidden="true">
+                <svg viewBox="0 0 160 150">
+                  <circle cx="78" cy="68" r="52" fill="#f3f2ee" stroke="#111" stroke-width="3"/>
+                  <circle cx="80" cy="52" r="20" fill="#333" stroke="#111" stroke-width="3"/>
+                  <path d="M27 114c6-25 23-38 53-38s47 13 53 38c-13 12-32 19-53 19s-40-7-53-19z" fill="#333" stroke="#111" stroke-width="3"/>
+                  <circle cx="128" cy="32" r="28" fill="#ad1111" stroke="#111" stroke-width="3"/>
+                  <text id="quick-count" x="128" y="41" text-anchor="middle" fill="#fff" font-size="24" font-weight="700">0</text>
+                </svg>
+              </span>
+              <span class="choice-caption">Gana dinero con tus<br>habilidades</span>
+            </button>
+            <button type="button" class="work-choice" data-select-type="Formal">
+              <span class="choice-title">Trabajo<br>formal</span>
+              <span class="choice-illustration formal-illustration" aria-hidden="true">
+                <svg viewBox="0 0 160 150">
+                  <circle cx="78" cy="68" r="52" fill="#f3f2ee" stroke="#111" stroke-width="3"/>
+                  <circle cx="80" cy="52" r="20" fill="#333" stroke="#111" stroke-width="3"/>
+                  <path d="M27 114c7-23 23-37 53-37s46 14 53 37c-13 13-32 20-53 20s-40-7-53-20z" fill="#333" stroke="#111" stroke-width="3"/>
+                  <path d="M64 82l16 16 16-16 9 10-13 39H68l-13-39z" fill="#151515" stroke="#111" stroke-width="2"/>
+                  <path d="M75 98h10l-2 23h-6z" fill="#eee"/>
+                  <circle cx="128" cy="32" r="28" fill="#ad1111" stroke="#111" stroke-width="3"/>
+                  <text id="formal-count" x="128" y="41" text-anchor="middle" fill="#fff" font-size="24" font-weight="700">0</text>
+                </svg>
+              </span>
+              <span class="choice-caption">Construye<br>experiencia laboral</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="buscar-view" aria-labelledby="buscar-title">
       <div class="hero">
         <div class="container hero-grid">
           <div class="hero-copy">
@@ -49,7 +102,6 @@
             <h1 id="buscar-title">Trabaja de la forma que necesites</h1>
             <p>Encuentra trabajo formal o una tarea rápida para hoy. Personas reales, sin intermediarios confusos.</p>
             <div class="type-choice" aria-label="Tipo de trabajo">
-              <button type="button" class="type-button active" data-type="todos">Todos</button>
               <button type="button" class="type-button" data-type="Rapido">Trabajo rápido</button>
               <button type="button" class="type-button" data-type="Formal">Trabajo formal</button>
             </div>
@@ -129,7 +181,7 @@
             </div>
             <div class="field">
               <label for="publish-pay">Pago o salario *</label>
-              <input id="publish-pay" name="pay" required maxlength="60" placeholder="Ej. $80.000 por día">
+              <input id="publish-pay" name="pay" required maxlength="60" placeholder="Ej. S/ 80 por día">
             </div>
             <div class="field">
               <label for="publish-schedule">Horario</label>

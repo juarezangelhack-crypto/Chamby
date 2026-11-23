@@ -24,10 +24,11 @@ button, a, input, select, textarea { outline-offset: 3px; }
 .skip-link:focus { top: 12px; }
 .container { width: min(1120px, calc(100% - 40px)); margin-inline: auto; }
 
-.header { position: sticky; top: 0; z-index: 30; background: rgba(255,255,255,.97); border-bottom: 1px solid var(--line); }
+.header { display: none; position: sticky; top: 0; z-index: 30; background: rgba(255,255,255,.97); border-bottom: 1px solid var(--line); }
+body.authenticated .header { display: block; }
 .header-inner { min-height: 74px; display: flex; align-items: center; gap: 28px; }
 .brand { display: flex; align-items: center; gap: 10px; border: 0; color: var(--navy); background: transparent; font-weight: 900; font-size: 1.12rem; cursor: pointer; }
-.brand-symbol { width: 40px; height: 40px; display: grid; place-items: center; color: white; background: var(--navy); border-radius: 10px 10px 10px 3px; }
+.brand-image { width: 145px; height: auto; display: block; border-radius: 8px; }
 .desktop-nav { display: flex; align-items: center; gap: 6px; margin-left: auto; }
 .nav-link { min-height: 44px; padding: 8px 12px; border: 0; border-radius: 7px; color: var(--muted); background: transparent; font-weight: 800; cursor: pointer; }
 .nav-link:hover, .nav-link.active { color: var(--navy); background: #edf3f6; }
@@ -37,6 +38,27 @@ button, a, input, select, textarea { outline-offset: 3px; }
 
 .view { display: none; }
 .view.active { display: block; }
+.entry-page, .welcome-page { min-height: 100vh; display: grid; place-items: center; padding: 36px 20px; color: white; background: linear-gradient(145deg, #19334f 0%, #233d58 55%, #172b42 100%); }
+.entry-content { width: min(760px, 100%); display: flex; align-items: center; flex-direction: column; text-align: center; }
+.entry-logo { width: 108px; height: 108px; object-fit: cover; border-radius: 28px; box-shadow: 0 10px 18px rgba(0,0,0,.32); }
+.entry-login { width: min(280px, 100%); min-height: 52px; margin-top: 56px; border: 3px solid #554b39; border-radius: 13px; color: #141414; background: #e6e5e3; font-size: 1.1rem; text-transform: uppercase; cursor: pointer; }
+.entry-content > p { margin: 24px 0 8px; font-size: clamp(1.05rem, 3vw, 1.45rem); }
+.entry-register { padding: 4px 8px; border: 0; color: white; background: transparent; font-size: 1.15rem; font-weight: 800; text-decoration: underline; cursor: pointer; }
+.entry-publish { width: min(370px, 100%); min-height: 52px; margin-top: 34px; border: 3px solid #56452c; border-radius: 13px; color: #161616; background: #e4bb4e; font-size: 1.05rem; cursor: pointer; }
+.entry-login:hover, .entry-publish:hover { filter: brightness(1.06); }
+.welcome-page { min-height: calc(100vh - 74px); text-align: center; }
+.welcome-content { max-width: 900px; }
+.welcome-content .kicker { color: #e5c25b; }
+.welcome-content h1 { font-size: clamp(2.4rem, 5vw, 3.5rem); letter-spacing: 0; }
+.welcome-question { margin: 8px 0 22px; font-size: clamp(1.25rem, 3vw, 1.8rem); }
+.work-choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 760px; margin-inline: auto; }
+.work-choice { min-height: 360px; display: flex; align-items: center; flex-direction: column; justify-content: space-between; gap: 12px; padding: 10px 22px 18px; border: 0; color: white; background: transparent; cursor: pointer; }
+.work-choice + .work-choice { border-left: 3px solid rgba(255,255,255,.85); }
+.work-choice:hover .choice-illustration { transform: translateY(-4px); }
+.choice-title { font-size: clamp(1.35rem, 3vw, 1.7rem); font-weight: 900; line-height: 1.2; }
+.choice-illustration { width: min(190px, 90%); display: block; transition: transform .18s ease; }
+.choice-illustration svg { width: 100%; height: auto; overflow: visible; }
+.choice-caption { font-size: clamp(1.15rem, 2.8vw, 1.6rem); line-height: 1.25; }
 .kicker { margin: 0 0 7px; color: var(--green); font-size: .78rem; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; }
 h1, h2 { line-height: 1.12; }
 h1 { margin: 0; font-size: clamp(2.4rem, 6vw, 4.8rem); letter-spacing: -.04em; }
@@ -83,6 +105,7 @@ h2 { margin: 0; font-size: clamp(1.7rem, 4vw, 2.5rem); }
 .publish-form { margin-top: 26px; padding: 24px; background: white; border: 1px solid var(--line); border-radius: 12px; }
 .form-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 16px; }
 .field { display: grid; gap: 7px; margin-bottom: 16px; }
+.field[hidden] { display: none; }
 .field label { font-size: .88rem; font-weight: 900; }
 .field input, .field select, .field textarea { width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 7px; background: white; }
 .field textarea { resize: vertical; }
@@ -130,11 +153,20 @@ dialog::backdrop { background: rgba(23,34,45,.68); }
 
 @media (max-width: 760px) {
   .container { width: calc(100% - 28px); }
-  .header-inner { min-height: 64px; gap: 8px; }
-  .brand > span:last-child { display: none; }
-  .desktop-nav { width: 100%; justify-content: space-around; margin: 0; }
-  .nav-link { min-height: 64px; flex: 1; padding-inline: 4px; font-size: .78rem; border-radius: 0; }
+  .header-inner { min-height: 0; display: grid; grid-template-columns: 1fr auto; gap: 6px 8px; padding-block: 8px; }
+  .brand-image { width: 108px; }
+  .desktop-nav { grid-column: 1 / -1; width: 100%; justify-content: space-around; margin: 0; }
+  .nav-link { min-height: 42px; flex: 1; padding: 5px 3px; font-size: .76rem; border-radius: 5px; }
   .account-button { min-width: 60px; padding-inline: 8px; }
+  .entry-login { margin-top: 40px; }
+  .entry-content > p { max-width: 500px; }
+  .work-choice-grid { width: 100%; }
+  .work-choice { min-width: 0; min-height: 320px; padding: 8px 10px; }
+  .choice-title { font-size: clamp(1rem, 4vw, 1.3rem); }
+  .choice-caption { font-size: clamp(.95rem, 3.8vw, 1.2rem); }
+  .choice-illustration { width: min(145px, 95%); }
+  .welcome-content h1 { font-size: clamp(2rem, 9vw, 2.7rem); }
+  .welcome-page { min-height: calc(100vh - 112px); }
   .hero-grid { grid-template-columns: 1fr; gap: 24px; padding-block: 38px; }
   .hero-copy p:not(.kicker) { font-size: 1rem; }
   .job-grid { grid-template-columns: 1fr; }

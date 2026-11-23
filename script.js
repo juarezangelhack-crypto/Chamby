@@ -60,6 +60,7 @@ function switchView(name) {
   views.forEach((view) => view.classList.toggle("active", view.id === `${name}-view`));
   navLinks.forEach((link) => link.classList.toggle("active", link.dataset.view === name));
   window.scrollTo({ top: 0, behavior: "smooth" });
+  if (name === "buscar") loadServerJobs(true);
   if (name === "mensajes") renderConversations();
   if (name === "anunciar") renderMyJobs();
   if (name === "dashboard") updateWelcomeCounts();
@@ -84,7 +85,7 @@ function getVisibleJobs() {
   const city = normalize(document.querySelector("#search-city").value.trim());
   const category = document.querySelector("#category-filter").value;
   const sort = document.querySelector("#sort-filter").value;
-  let result = jobs.filter((job) => job.status === "Abierto");
+  let result = jobs.filter((job) => job.status === "Abierto" && job.applicantCount < MAX_JOB_APPLICANTS);
   if (selectedType) result = result.filter((job) => job.type === selectedType);
   if (text) result = result.filter((job) => normalize(`${job.title} ${job.description} ${job.category}`).includes(text));
   if (city) result = result.filter((job) => normalize(job.city).includes(city));
@@ -93,7 +94,7 @@ function getVisibleJobs() {
   return result;
 }
 function updateWelcomeCounts() {
-  const available = jobs.filter((job) => job.status === "Abierto");
+  const available = jobs.filter((job) => job.status === "Abierto" && job.applicantCount < MAX_JOB_APPLICANTS);
   document.querySelector("#quick-count").textContent = available.filter((job) => job.type === "Rapido").length;
   document.querySelector("#formal-count").textContent = available.filter((job) => job.type === "Formal").length;
 }
@@ -106,10 +107,12 @@ function renderJobs() {
   document.querySelector("#result-count").textContent = `${result.length} ${result.length === 1 ? "oportunidad" : "oportunidades"}`;
   const grid = document.querySelector("#job-grid");
   if (!result.length) {
-    const hasOpenJobs = jobs.some((job) => job.status === "Abierto");
-    grid.innerHTML = hasOpenJobs
+    const hasAvailableJobs = jobs.some((job) => job.status === "Abierto" && job.applicantCount < MAX_JOB_APPLICANTS);
+    grid.innerHTML = hasAvailableJobs
       ? `<div class="empty-state"><h3>No encontramos coincidencias</h3><p>Cambia los filtros o prueba con otro distrito.</p></div>`
-      : `<div class="empty-state"><h3>Aún no hay trabajos publicados</h3><p>Las ofertas aparecerán aquí cuando una persona publique una oportunidad.</p></div>`;
+      : jobs.length
+        ? `<div class="empty-state"><h3>No hay trabajos disponibles</h3><p>Los anuncios se ocultan al alcanzar 10 postulantes.</p></div>`
+        : `<div class="empty-state"><h3>Aún no hay trabajos publicados</h3><p>Las ofertas aparecerán aquí cuando una persona publique una oportunidad.</p></div>`;
     return;
   }
   grid.innerHTML = result.map((job) => `
@@ -710,11 +713,11 @@ document.querySelectorAll("dialog").forEach((dialog) => dialog.addEventListener(
   if (event.target === dialog) dialog.close();
 }));
 
-async function loadServerJobs() {
+async function loadServerJobs(silent = false) {
   try {
     const response = await fetch("/api/jobs");
     if (!response.ok) {
-      showToast("No se pudieron cargar los trabajos. Inténtalo de nuevo.");
+      if (!silent) showToast("No se pudieron cargar los trabajos. Inténtalo de nuevo.");
       return;
     }
     const result = await response.json();
@@ -735,7 +738,7 @@ async function loadServerJobs() {
     }));
     renderJobs();
   } catch {
-    showToast("No se pudieron cargar los trabajos. Revisa tu conexión e inténtalo de nuevo.");
+    if (!silent) showToast("No se pudieron cargar los trabajos. Revisa tu conexión e inténtalo de nuevo.");
   }
 }
 
@@ -783,6 +786,10 @@ renderConversations();
 window.setInterval(() => {
   if (currentUser && !document.hidden) loadServerMessages();
 }, 5000);
+window.setInterval(() => {
+  const searchIsVisible = document.querySelector("#buscar-view").classList.contains("active");
+  if (searchIsVisible && !document.hidden && !jobDialog.open) loadServerJobs(true);
+}, 10000);
 document.addEventListener("visibilitychange", () => {
   if (currentUser && !document.hidden) loadServerMessages();
 });

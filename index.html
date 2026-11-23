@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#17324d">
+  <meta name="description" content="Conecta oportunidades laborales rápidas y formales con personas reales.">
+  <title>EncuentraLab</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#contenido">Saltar al contenido</a>
+  <datalist id="district-list">
+    <option value="Ancón"><option value="Ate"><option value="Barranco"><option value="Breña">
+    <option value="Carabayllo"><option value="Chaclacayo"><option value="Chorrillos">
+    <option value="Cieneguilla"><option value="Comas"><option value="El Agustino">
+    <option value="Independencia"><option value="Jesús María"><option value="La Molina">
+    <option value="La Victoria"><option value="Lince"><option value="Los Olivos">
+    <option value="Lurigancho"><option value="Lurín"><option value="Magdalena del Mar">
+    <option value="Miraflores"><option value="Pachacámac"><option value="Pucusana">
+    <option value="Pueblo Libre"><option value="Puente Piedra"><option value="Rímac">
+    <option value="San Bartolo"><option value="San Borja"><option value="San Isidro">
+    <option value="San Juan de Lurigancho"><option value="San Juan de Miraflores">
+    <option value="San Luis"><option value="San Martín de Porres"><option value="Santa Anita">
+    <option value="Santa María del Mar"><option value="Santa Rosa"><option value="Santiago de Surco">
+    <option value="Surquillo"><option value="Villa El Salvador"><option value="Villa María del Triunfo">
+  </datalist>
+  <header class="header">
+    <div class="container header-inner">
+      <button class="brand" type="button" data-view="buscar" aria-label="Ir al inicio">
+        <span class="brand-symbol" aria-hidden="true">E</span>
+        <span>EncuentraLab</span>
+      </button>
+      <nav class="desktop-nav" aria-label="Navegación principal">
+        <button type="button" class="nav-link active" data-view="buscar">Buscar trabajo</button>
+        <button type="button" class="nav-link" data-view="anunciar">Anunciar trabajo</button>
+        <button type="button" class="nav-link" data-view="mensajes">Mensajes <span class="badge" id="message-badge" hidden>0</span></button>
+      </nav>
+      <button class="account-button" type="button" id="account-button">Entrar</button>
+    </div>
+  </header>
+
+  <main id="contenido">
+    <section class="view active" id="buscar-view" aria-labelledby="buscar-title">
+      <div class="hero">
+        <div class="container hero-grid">
+          <div class="hero-copy">
+            <p class="kicker">Oportunidades cerca de ti</p>
+            <h1 id="buscar-title">Trabaja de la forma que necesites</h1>
+            <p>Encuentra trabajo formal o una tarea rápida para hoy. Personas reales, sin intermediarios confusos.</p>
+            <div class="type-choice" aria-label="Tipo de trabajo">
+              <button type="button" class="type-button active" data-type="todos">Todos</button>
+              <button type="button" class="type-button" data-type="Rapido">Trabajo rápido</button>
+              <button type="button" class="type-button" data-type="Formal">Trabajo formal</button>
+            </div>
+          </div>
+          <form class="search-card" id="search-form" role="search">
+            <label for="search-text">¿Qué buscas?</label>
+            <input id="search-text" type="search" placeholder="Ej. mesero, diseño, tutoría">
+            <label for="search-city">Distrito</label>
+            <input id="search-city" type="search" placeholder="Ej. Miraflores" list="district-list">
+            <button class="primary-button" type="submit">Buscar oportunidades</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="container listings-section">
+        <div class="section-heading">
+          <div>
+            <p class="kicker">Actualizado hoy</p>
+            <h2>Oportunidades disponibles</h2>
+          </div>
+          <p id="result-count" aria-live="polite"></p>
+        </div>
+        <div class="filter-row">
+          <label for="category-filter">Categoría</label>
+          <select id="category-filter">
+            <option value="todas">Todas</option>
+            <option value="Servicios">Servicios</option>
+            <option value="Comercio">Comercio</option>
+            <option value="Tecnología">Tecnología</option>
+            <option value="Educación">Educación</option>
+            <option value="Atención al cliente">Atención al cliente</option>
+            <option value="Construcción">Construcción</option>
+          </select>
+          <label for="sort-filter">Ordenar por</label>
+          <select id="sort-filter">
+            <option value="recientes">Más recientes</option>
+            <option value="rapidos">Trabajos rápidos primero</option>
+          </select>
+        </div>
+        <div class="job-grid" id="job-grid"></div>
+      </div>
+    </section>
+
+    <section class="view" id="anunciar-view" aria-labelledby="anunciar-title">
+      <div class="container narrow-page">
+        <p class="kicker">Publica una oportunidad</p>
+        <h1 id="anunciar-title">Anunciar un trabajo</h1>
+        <p class="page-intro">Completa los datos. Las personas podrán postularse y conversar contigo desde el buzón.</p>
+
+        <form class="publish-form" id="publish-form">
+          <div class="form-grid">
+            <div class="field">
+              <label for="publish-title">Título del trabajo *</label>
+              <input id="publish-title" name="title" required maxlength="70" placeholder="Ej. Ayuda para mudanza">
+            </div>
+            <div class="field">
+              <label for="publish-type">Tipo de trabajo *</label>
+              <select id="publish-type" name="type" required>
+                <option value="Rapido">Trabajo rápido</option>
+                <option value="Formal">Trabajo formal</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="publish-category">Categoría *</label>
+              <select id="publish-category" name="category" required>
+                <option value="Servicios">Servicios</option>
+                <option value="Comercio">Comercio</option>
+                <option value="Tecnología">Tecnología</option>
+                <option value="Educación">Educación</option>
+                <option value="Atención al cliente">Atención al cliente</option>
+                <option value="Construcción">Construcción</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="publish-city">Distrito de Lima *</label>
+              <input id="publish-city" name="city" required maxlength="50" placeholder="Ej. Miraflores" list="district-list">
+            </div>
+            <div class="field">
+              <label for="publish-pay">Pago o salario *</label>
+              <input id="publish-pay" name="pay" required maxlength="60" placeholder="Ej. $80.000 por día">
+            </div>
+            <div class="field">
+              <label for="publish-schedule">Horario</label>
+              <input id="publish-schedule" name="schedule" maxlength="60" placeholder="Ej. Sábado desde las 8:00 a. m.">
+            </div>
+          </div>
+          <div class="field">
+            <label for="publish-description">Descripción *</label>
+            <textarea id="publish-description" name="description" required maxlength="800" rows="5" placeholder="Explica qué se necesita, dónde y qué debe saber hacer la persona."></textarea>
+          </div>
+          <button class="primary-button" type="submit">Publicar trabajo</button>
+        </form>
+
+        <section class="my-jobs" aria-labelledby="my-jobs-title">
+          <div class="section-heading">
+            <h2 id="my-jobs-title">Mis anuncios</h2>
+            <span id="my-job-count"></span>
+          </div>
+          <div id="my-job-list"></div>
+        </section>
+      </div>
+    </section>
+
+    <section class="view" id="mensajes-view" aria-labelledby="mensajes-title">
+      <div class="container messages-page">
+        <div class="messages-heading">
+          <div>
+            <p class="kicker">Buzón personal</p>
+            <h1 id="mensajes-title">Mensajes</h1>
+          </div>
+        </div>
+        <div class="messenger">
+          <aside class="conversation-list" aria-label="Conversaciones">
+            <div id="conversation-list"></div>
+          </aside>
+          <section class="chat-panel" aria-label="Chat">
+            <div id="chat-empty" class="chat-empty">
+              <div class="chat-empty-symbol" aria-hidden="true">●</div>
+              <h2>Selecciona una conversación</h2>
+              <p>Las postulaciones y respuestas aparecerán aquí.</p>
+            </div>
+            <div id="chat-active" hidden>
+              <header class="chat-header">
+                <div>
+                  <strong id="chat-name"></strong>
+                  <p id="chat-job"></p>
+                </div>
+              </header>
+              <div class="chat-messages" id="chat-messages" aria-live="polite"></div>
+              <form class="chat-form" id="chat-form">
+                <label class="sr-only" for="chat-input">Escribe un mensaje</label>
+                <input id="chat-input" autocomplete="off" placeholder="Escribe un mensaje...">
+                <button type="submit" aria-label="Enviar mensaje">Enviar</button>
+              </form>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="auth-dialog" aria-labelledby="auth-title">
+    <button class="dialog-close" type="button" data-close-dialog aria-label="Cerrar">×</button>
+    <div id="auth-content"></div>
+  </dialog>
+
+  <dialog id="job-dialog" aria-labelledby="job-dialog-title">
+    <button class="dialog-close" type="button" data-close-dialog aria-label="Cerrar">×</button>
+    <div id="job-dialog-content"></div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="script.js"></script>
+</body>
+</html>

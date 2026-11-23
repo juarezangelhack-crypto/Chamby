@@ -85,7 +85,7 @@ function getVisibleJobs() {
   const city = normalize(document.querySelector("#search-city").value.trim());
   const category = document.querySelector("#category-filter").value;
   const sort = document.querySelector("#sort-filter").value;
-  let result = jobs.filter((job) => job.status === "Abierto" && job.applicantCount < MAX_JOB_APPLICANTS);
+  let result = jobs.filter((job) => job.status === "Abierto" && job.applicantCount < job.applicantLimit);
   if (selectedType) result = result.filter((job) => job.type === selectedType);
   if (text) result = result.filter((job) => normalize(`${job.title} ${job.description} ${job.category}`).includes(text));
   if (city) result = result.filter((job) => normalize(job.city).includes(city));
@@ -94,7 +94,7 @@ function getVisibleJobs() {
   return result;
 }
 function updateWelcomeCounts() {
-  const available = jobs.filter((job) => job.status === "Abierto" && job.applicantCount < MAX_JOB_APPLICANTS);
+  const available = jobs.filter((job) => job.status === "Abierto" && job.applicantCount < job.applicantLimit);
   document.querySelector("#quick-count").textContent = available.filter((job) => job.type === "Rapido").length;
   document.querySelector("#formal-count").textContent = available.filter((job) => job.type === "Formal").length;
 }
@@ -107,11 +107,11 @@ function renderJobs() {
   document.querySelector("#result-count").textContent = `${result.length} ${result.length === 1 ? "oportunidad" : "oportunidades"}`;
   const grid = document.querySelector("#job-grid");
   if (!result.length) {
-    const hasAvailableJobs = jobs.some((job) => job.status === "Abierto" && job.applicantCount < MAX_JOB_APPLICANTS);
+    const hasAvailableJobs = jobs.some((job) => job.status === "Abierto" && job.applicantCount < job.applicantLimit);
     grid.innerHTML = hasAvailableJobs
       ? `<div class="empty-state"><h3>No encontramos coincidencias</h3><p>Cambia los filtros o prueba con otro distrito.</p></div>`
       : jobs.length
-        ? `<div class="empty-state"><h3>No hay trabajos disponibles</h3><p>Los anuncios se ocultan al alcanzar 10 postulantes.</p></div>`
+        ? `<div class="empty-state"><h3>No hay trabajos disponibles</h3><p>Los anuncios se ocultan al alcanzar el máximo de postulantes que eligió quien los publicó.</p></div>`
         : `<div class="empty-state"><h3>Aún no hay trabajos publicados</h3><p>Las ofertas aparecerán aquí cuando una persona publique una oportunidad.</p></div>`;
     return;
   }
@@ -156,17 +156,18 @@ function openJobDetail(jobId) {
   if (!job) return;
   const isOwner = currentUser?.id === job.ownerId;
   const applicantCount = Number(job.applicantCount || 0);
-  const isFull = applicantCount >= MAX_JOB_APPLICANTS;
+  const applicantLimit = Number(job.applicantLimit || MAX_JOB_APPLICANTS);
+  const isFull = applicantCount >= applicantLimit;
   document.querySelector("#job-dialog-content").innerHTML = `
     <p class="kicker">${job.type === "Rapido" ? "Trabajo rápido" : "Trabajo formal"} · ${esc(job.category)}</p>
     <h2 id="job-dialog-title">${esc(job.title)}</h2>
     <p><strong>${esc(job.ownerName)}</strong> · ${esc(job.city)}</p>
     <p>${esc(job.description)}</p>
     <p><strong>Pago:</strong> ${esc(job.pay)}<br><strong>Horario:</strong> ${esc(job.schedule)}</p>
-    <p><strong>Postulantes:</strong> ${applicantCount}/${MAX_JOB_APPLICANTS}</p>
+    <p><strong>Postulantes:</strong> ${applicantCount}/${applicantLimit}</p>
     ${isOwner
       ? `<p class="owner-notice">Este es tu anuncio. No puedes postularte a tu propio trabajo.</p>`
-      : `${isFull ? `<p class="owner-notice">Se alcanzó el máximo de 10 postulantes. Ya no se aceptan más postulaciones.</p>` : ""}
+      : `${isFull ? `<p class="owner-notice">Se alcanzó el máximo de ${applicantLimit} postulantes. Ya no se aceptan más postulaciones.</p>` : ""}
         <div class="dialog-actions">
           ${isFull ? "" : `<button class="primary-button" type="button" id="apply-job">Postularme</button>`}
           <button class="secondary-button" type="button" id="chat-owner">Contactar</button>
@@ -217,6 +218,7 @@ document.querySelector("#publish-form").addEventListener("submit", async (event)
     title: data.get("title").trim(),
     type: data.get("type"),
     category: data.get("category"),
+    applicantLimit: Number(data.get("applicantLimit")),
     city: data.get("city").trim(),
     pay: data.get("pay").trim(),
     schedule: data.get("schedule").trim() || "Por acordar",
@@ -251,7 +253,7 @@ function renderMyJobs() {
   document.querySelector("#my-job-count").textContent = `${mine.length} anuncios`;
   document.querySelector("#my-job-list").innerHTML = mine.length ? mine.map((job) => {
     const applicants = applications.filter((item) => item.jobId === job.id);
-    const applicantText = applicants.length ? `${applicantTextCount(applicants.length)} postulado${applicants.length === 1 ? "" : "s"}` : "Sin postulaciones";
+    const applicantText = `${applicantTextCount(applicants.length)}/${job.applicantLimit} postulantes`;
     return `<div class="my-job-row">
       <div><strong>${esc(job.title)}</strong><span>${esc(job.city)} · ${applicantText} · ${job.status}</span></div>
       ${job.status === "Abierto" ? `<button class="secondary-button accept-button" type="button" data-accept="${esc(job.id)}">Aceptar trabajo</button>` : ""}
@@ -317,7 +319,7 @@ function showApplicants(jobId, notice = "") {
   const job = jobs.find((item) => item.id === jobId);
   document.querySelector("#job-dialog-content").innerHTML = `
     <h2 id="job-dialog-title">Postulantes</h2>
-    <p>${esc(job.title)} · ${applicants.length}/${MAX_JOB_APPLICANTS} postulantes</p>
+    <p>${esc(job.title)} · ${applicants.length}/${job.applicantLimit} postulantes</p>
     ${notice ? `<p class="owner-notice" role="status">${esc(notice)}</p>` : ""}
     ${applicants.length ? applicants.map((item) => `<div class="my-job-row"><div><strong>${esc(item.applicantName)}</strong><span>${esc(item.applicantDistrict || "Distrito no registrado")} · ${esc(item.status)}</span></div><button class="secondary-button" type="button" data-chat-applicant="${esc(item.applicantId)}" data-job="${esc(job.id)}">Abrir chat</button><button class="secondary-button" type="button" data-remove-application="${esc(item.id)}" data-job="${esc(job.id)}" data-applicant-name="${esc(item.applicantName)}">Quitar</button></div>`).join("") : `<div class="empty-state"><p>No hay postulaciones todavía.</p></div>`}`;
   jobDialog.showModal();
@@ -733,6 +735,7 @@ async function loadServerJobs(silent = false) {
       ownerId: job.owner_id,
       ownerName: job.owner_name,
       status: job.status,
+      applicantLimit: Number(job.applicant_limit || MAX_JOB_APPLICANTS),
       applicantCount: Number(job.applicant_count || 0),
       createdAt: job.created_at
     }));

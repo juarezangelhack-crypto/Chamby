@@ -71,6 +71,7 @@ def init_db():
       schedule TEXT NOT NULL,
       description TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'Abierto',
+      applicant_limit INTEGER NOT NULL DEFAULT 10 CHECK(applicant_limit BETWEEN 1 AND 10),
       created_at INTEGER NOT NULL
     );
     CREATE TABLE IF NOT EXISTS applications (
@@ -89,6 +90,12 @@ def init_db():
       created_at INTEGER NOT NULL
     );
     """)
+    job_columns = {row["name"] for row in con.execute("PRAGMA table_info(jobs)").fetchall()}
+    if "applicant_limit" not in job_columns:
+        con.execute(
+            "ALTER TABLE jobs ADD COLUMN applicant_limit INTEGER NOT NULL DEFAULT 10 "
+            "CHECK(applicant_limit BETWEEN 1 AND 10)"
+        )
     con.commit()
     con.close()
 
@@ -474,14 +481,21 @@ class Handler(SimpleHTTPRequestHandler):
         if district_key not in {d.replace("á","a").replace("é","e").replace("í","i").replace("ó","o").replace("ú","u") for d in LIMA_DISTRICTS}:
             self.respond(400, {"error": "El trabajo debe ser publicado en un distrito de Lima"})
             return
+        try:
+            applicant_limit = int(data.get("applicantLimit", MAX_APPLICANTS_PER_JOB))
+        except (TypeError, ValueError):
+            applicant_limit = 0
+        if not 1 <= applicant_limit <= MAX_APPLICANTS_PER_JOB:
+            self.respond(400, {"error": "El máximo debe estar entre 1 y 10 postulantes"})
+            return
         job_id = secrets.token_urlsafe(12)
         con = db()
         con.execute(
-            "INSERT INTO jobs(id,owner_id,owner_name,title,type,category,city,pay,schedule,description,status,created_at)"
-            " VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO jobs(id,owner_id,owner_name,title,type,category,city,pay,schedule,description,status,applicant_limit,created_at)"
+            " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (job_id, user["id"], user["name"], data["title"].strip(), data["type"], data["category"],
              data["city"].strip(), data["pay"].strip(), data["schedule"].strip(), data["description"].strip(),
-             "Abierto", int(time.time()))
+             "Abierto", applicant_limit, int(time.time()))
         )
         con.commit()
         con.close()
@@ -519,10 +533,10 @@ class Handler(SimpleHTTPRequestHandler):
         applicant_count = con.execute(
             "SELECT COUNT(*) FROM applications WHERE job_id=?", (job_id,)
         ).fetchone()[0]
-        if applicant_count >= MAX_APPLICANTS_PER_JOB:
+        if applicant_count >= job["applicant_limit"]:
             con.close()
             self.respond(409, {
-                "error": "Este anuncio alcanzó el máximo de 10 postulantes.",
+                "error": f"Este anuncio alcanzó el máximo de {job['applicant_limit']} postulantes.",
                 "code": "MAX_APPLICANTS"
             })
             return

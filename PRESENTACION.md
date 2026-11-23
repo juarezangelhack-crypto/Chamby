@@ -24,9 +24,9 @@
 
 ### 2. Demo: postulante — 0:45 a 1:30
 
-En vivo: elegir Trabajo rápido, abrir el perfil de prueba con distrito VES, encontrar una oportunidad marcada como demo y postularse.
+En vivo: elegir Trabajo rápido, mostrar el filtro de distrito con el VES del perfil, abrir una oportunidad marcada como demo y postularse.
 
-**Visual:** sitio publicado, no una captura.
+**Visual:** [sitio publicado](https://chamby-production.up.railway.app/), no una captura.
 
 ### 3. Demo: anunciante — 1:30 a 2:15
 
@@ -46,6 +46,7 @@ En vivo: cambiar a la cuenta de prueba del anunciante, abrir postulantes, revisa
 
 - Empezar por validar el flujo con personas de VES.
 - Luego ampliar a más distritos y, cuando se implemente la verificación empresarial, habilitar publicación formal.
+- Demo en vivo: <https://chamby-production.up.railway.app/>
 - Repositorio: <https://github.com/juarezangelhack-crypto/Chamby>
 
 **Fuente de oportunidades públicas:** [MTPE — Empleos Perú](https://www.empleosperu.gob.pe/portal-mtpe/). Chamby no copia esas vacantes; sus anuncios los publican sus propios usuarios.
@@ -58,7 +59,7 @@ En vivo: cambiar a la cuenta de prueba del anunciante, abrir postulantes, revisa
 
 ### 0:45–1:30 — Demo de postulante
 
-“Estamos en la página real de Chamby. Elijo Trabajo rápido y entro con la cuenta de prueba. Aquí se ve el perfil separado para esta modalidad y el distrito de Villa El Salvador. Abro una oportunidad identificada como demostración, reviso sus condiciones y me postulo. El sistema registra la postulación y la oportunidad aparece para el anunciante. Esta publicación es solo para la demo, no es una oferta real.”
+“Estamos en la página real de Chamby. Elijo Trabajo rápido y entro con la cuenta de prueba. El perfil tiene el distrito de Villa El Salvador y ese mismo distrito aparece seleccionado en el filtro. Abro una oportunidad identificada como demostración, reviso sus condiciones y me postulo. Esta publicación es solo para la demo, no es una oferta real.”
 
 ### 1:30–2:15 — Demo de anunciante
 

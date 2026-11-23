@@ -10,8 +10,9 @@ Chambly conecta a personas que buscan trabajo con oportunidades en Lima. La plat
 ## Qué permite hacer
 
 - Crear una cuenta e iniciar sesión con Firebase Authentication.
-- Elegir una modalidad y mantener un perfil separado con distrito, foto y CV PDF.
-- Explorar oportunidades, filtrar por categoría y postularse.
+- Elegir una modalidad y mantener un perfil separado con distrito, foto y CV PDF; la foto de trabajo rápido también aparece en la bienvenida.
+- Explorar oportunidades, filtrar por categoría y distrito, y postularse. El filtro de distrito comienza con el distrito del perfil y permite elegir otro o ver todos.
+- Mostrar un avatar circular predeterminado cuando todavía no se ha agregado una foto de perfil.
 - Publicar trabajos rápidos con un límite configurable de 1 a 10 postulantes.
 - Ocultar del buscador los anuncios que alcanzan su límite, sin quitarlos de la administración del anunciante.
 - Revisar postulantes, ver su perfil, abrir el chat o retirar una postulación.

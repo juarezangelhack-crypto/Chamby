@@ -335,7 +335,7 @@ function updateProfileForm() {
   document.querySelector("#profile-district").value = profile.district || "";
   document.querySelector("#profile-photo-preview").src = profile.photoData
     ? `data:${profile.photoMime};base64,${profile.photoData}`
-    : "assets/no-profile.svg";
+    : "assets/no-profile.png";
   const cvLink = document.querySelector("#profile-cv-current");
   cvLink.hidden = !profile.cvName;
   if (profile.cvName) {
@@ -443,7 +443,7 @@ async function showApplicantProfile(applicantId, jobId) {
     const applicantProfile = result.profile;
     const photo = applicantProfile.photoData
       ? `data:${applicantProfile.photoMime};base64,${applicantProfile.photoData}`
-      : "assets/no-profile.svg";
+      : "assets/no-profile.png";
     const cv = applicantProfile.cvName
       ? `<a class="profile-cv-link" href="/api/profiles/${encodeURIComponent(applicantId)}/cv?type=${encodeURIComponent(pageType)}&jobId=${encodeURIComponent(jobId)}" target="_blank" rel="noopener">Ver CV en PDF</a>`
       : `<p>Este usuario aún no ha subido un CV.</p>`;

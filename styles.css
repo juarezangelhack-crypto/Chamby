@@ -48,8 +48,7 @@ body[data-job-type="Formal"] #anunciar-view { display: none !important; }
 .choice-title { font-size: clamp(1.35rem, 3vw, 1.7rem); font-weight: 900; line-height: 1.2; }
 .choice-illustration { width: min(190px, 90%); display: block; transition: transform .18s ease; }
 .choice-illustration svg { width: 100%; height: auto; overflow: visible; }
-.no-profile-icon { width: min(180px, 80%); }
-.welcome-profile-avatar { width: min(180px, 80%); aspect-ratio: 1; height: auto; border-radius: 50%; object-fit: cover; overflow: hidden; background: #c6c8cc; }
+.no-profile-icon, .welcome-profile-avatar { width: min(180px, 80%); aspect-ratio: 1; height: auto; border-radius: 50%; object-fit: cover; overflow: hidden; background: #c6c8cc; }
 .work-choice { text-decoration: none; }
 .choice-caption { font-size: clamp(1.15rem, 2.8vw, 1.6rem); line-height: 1.25; }
 .kicker { margin: 0 0 7px; color: var(--green); font-size: .78rem; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; }

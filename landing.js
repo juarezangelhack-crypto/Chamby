@@ -39,7 +39,7 @@ function openAccount() {
       if (!response.ok) throw new Error("logout_failed");
       currentUser = null;
       accountButton.textContent = "Entrar";
-      quickProfilePhoto.src = "assets/no-profile.svg";
+      quickProfilePhoto.src = "assets/no-profile.png";
       accountDialog.close();
       showToast("Sesión cerrada.");
     } catch {

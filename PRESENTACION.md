@@ -1,73 +1,82 @@
-# Chambly — presentación de 5 diapositivas
+# Chamby — pitch de 3 minutos
 
-**Duración objetivo:** 3 minutos.
+**Máximo:** 5 diapositivas.
 **ODS propuesto:** [ODS 8, Trabajo decente y crecimiento económico](https://sdgs.un.org/goals/goal8).
-**Equipo:** completar los nombres y roles antes de exponer.
+**Equipo:** completar nombres y quién presenta cada parte.
 
-## Diapositiva 1 — El reto
+## Reglas del reto
 
-**Encontrar una oportunidad adecuada no debería depender de buscar en muchos lugares.**
+- Los cambios de equipo cierran a las **10:00 a. m.**
+- Regla 80/20: enfocar la demo en **un flujo principal, completo y estable**.
+- Demo del producto real funcionando en vivo; no reemplazarla por video o capturas.
+- No afirmar que el código se escribe en vivo si solo se está ejecutando la aplicación. Si la regla exige programar delante del jurado, confirmen esa interpretación con la organización.
+- Rúbrica: impacto social (ODS) 30 %, ejecución técnica 30 %, innovación 25 % y presentación 15 %.
 
-- Personas con necesidades distintas buscan trabajos rápidos o una ruta de experiencia formal.
-- Chambly organiza ambas rutas en una sola plataforma.
-- ODS 8: trabajo decente y crecimiento económico ([Naciones Unidas](https://sdgs.un.org/goals/goal8)).
+## Las 5 diapositivas y tiempos
 
-**Visual:** portada de Chambly, con las dos modalidades.
+### 1. Problema en VES + solución — 0:00 a 0:45
 
-## Diapositiva 2 — La solución
+- Reto local que aborda Chamby: acercar a postulantes y anunciantes en un mismo lugar.
+- Solución: dos caminos, trabajo rápido y trabajo formal, con perfiles separados.
+- ODS 8: trabajo decente y crecimiento económico.
 
-**Dos caminos, perfiles independientes**
+**Visual:** portada de Chamby y elección entre las dos modalidades. Presenta el problema como hipótesis del equipo, no como una estadística comprobada.
 
-- **Trabajo rápido:** oportunidades por categoría y distrito; postulación y contacto directo.
-- **Trabajo formal:** exploración de oportunidades y un perfil separado.
-- Foto, distrito y CV PDF se administran en cada perfil.
+### 2. Demo: postulante — 0:45 a 1:30
 
-**Visual:** captura de `index.html` y una página de modalidad.
+En vivo: elegir Trabajo rápido, abrir el perfil de prueba con distrito VES, encontrar una oportunidad marcada como demo y postularse.
 
-## Diapositiva 3 — Demo en vivo
+**Visual:** sitio publicado, no una captura.
 
-**Del anuncio al primer contacto**
+### 3. Demo: anunciante — 1:30 a 2:15
 
-1. Elegir Trabajo rápido.
-2. Abrir una oferta y postularse.
-3. Como anunciante, revisar el perfil del postulante.
-4. Enviar un mensaje desde el chat.
+En vivo: cambiar a la cuenta de prueba del anunciante, abrir postulantes, revisar el perfil y enviar un mensaje. Mencionar el límite de postulantes solo si queda tiempo.
 
-**Visual:** mostrar el flujo en el sitio publicado. Usa cuentas y archivos de prueba.
+**Visual:** perfil del postulante y chat funcionando.
 
-## Diapositiva 4 — Datos y accesibilidad
+### 4. Impacto ODS — 2:15 a 2:40
 
-- Se puede seleccionar Villa El Salvador como distrito.
-- Las vacantes en Chamby son publicaciones de usuarios; no se presentan anuncios externos como propios.
-- INEI ofrece consulta de indicadores distritales; Empleos Perú permite consultar ofertas laborales.
-- La interfaz incorpora etiquetas, navegación por teclado, foco visible y movimiento reducido.
+- El ODS 8 es el marco de Chamby, no un impacto ya demostrado.
+- Medir oportunidades verificadas en VES, postulaciones completadas y anunciantes que responden.
+- Aún no se han validado resultados de colocación laboral.
 
-**Fuentes:** [INEI — sistemas de consulta](https://www.gob.pe/23456-sistemas-de-consultas-del-inei) · [MTPE — Empleos Perú](https://www.empleosperu.gob.pe/portal-mtpe/)
+**Fuentes:** [Naciones Unidas — ODS 8](https://sdgs.un.org/goals/goal8) · [INEI — indicadores distritales](https://www.gob.pe/23456-sistemas-de-consultas-del-inei) · [Censos 2017 — Redatam](https://www.gob.pe/24120-consulta-la-base-de-datos-de-los-censos-nacionales-2017)
 
-## Diapositiva 5 — Estado y siguiente paso
+### 5. Escalabilidad — 2:40 a 3:00
 
-- Aplicación funcional y publicada.
-- Repositorio público: <https://github.com/juarezangelhack-crypto/Chamby>
-- Web: <https://chamby-production.up.railway.app/>
-- Siguiente paso: validar oportunidades verificables de VES, probar con usuarios y ampliar la publicación formal a empresas.
+- Empezar por validar el flujo con personas de VES.
+- Luego ampliar a más distritos y, cuando se implemente la verificación empresarial, habilitar publicación formal.
+- Repositorio: <https://github.com/juarezangelhack-crypto/Chamby>
 
-**Cierre:** “Chamby acerca a las personas a oportunidades de trabajo y facilita el primer contacto.”
+**Fuente de oportunidades públicas:** [MTPE — Empleos Perú](https://www.empleosperu.gob.pe/portal-mtpe/). Chamby no copia esas vacantes; sus anuncios los publican sus propios usuarios.
 
----
+## Guion hablado
 
-## Guion de 3 minutos
+### 0:00–0:45 — Problema en VES y solución
 
-**0:00–0:30 — Diapositiva 1**
-“Nuestro proyecto se llama Chamby. Queremos hacer más sencillo el encuentro entre personas que buscan trabajo y quienes necesitan cubrir una oportunidad. No todas las personas buscan lo mismo: algunas necesitan un trabajo rápido y otras quieren construir experiencia en una ruta formal. Por eso orientamos el proyecto al ODS 8, Trabajo decente y crecimiento económico.”
+“Somos el equipo de Chamby. El reto que queremos resolver en Villa El Salvador es que a una persona que busca trabajo le resulte más sencillo encontrar una oportunidad y comunicarse con quien la publica. Esta es nuestra hipótesis de problema; no vamos a inventar una cifra de desempleo. Nuestra solución reúne en una sola web dos caminos: trabajo rápido y trabajo formal. Cada camino tiene su propio perfil. Elegimos el ODS 8, trabajo decente y crecimiento económico, como marco del proyecto. Ahora mostraremos un solo flujo completo.”
 
-**0:30–1:00 — Diapositiva 2**
-“La portada permite escoger entre Trabajo rápido y Trabajo formal. Cada camino conserva su propio perfil, con distrito, foto y CV. En Trabajo rápido, una persona puede revisar oportunidades, filtrar por categoría y postularse. El anunciante puede revisar a quienes postularon y conversar con ellos. La publicación formal está deshabilitada mientras definimos cómo validar a las empresas.”
+### 0:45–1:30 — Demo de postulante
 
-**1:00–2:10 — Diapositiva 3 / demo**
-“Voy a mostrar el flujo principal. Primero escojo Trabajo rápido y abro una oportunidad. Después me postulo desde una cuenta de prueba. Como anunciante, puedo ver la postulación, abrir el perfil y enviar un mensaje en el chat. La aplicación también permite fijar un máximo de postulantes para cada anuncio y ocultarlo del buscador cuando se llena. Este recorrido se probó con datos aislados; para la presentación usaremos cuentas de demostración.”
+“Estamos en la página real de Chamby. Elijo Trabajo rápido y entro con la cuenta de prueba. Aquí se ve el perfil separado para esta modalidad y el distrito de Villa El Salvador. Abro una oportunidad identificada como demostración, reviso sus condiciones y me postulo. El sistema registra la postulación y la oportunidad aparece para el anunciante. Esta publicación es solo para la demo, no es una oferta real.”
 
-**2:10–2:40 — Diapositiva 4**
-“Villa El Salvador puede elegirse como distrito dentro de la plataforma. Estamos siendo cuidadosos con los datos: no copiamos vacantes de otros portales ni inventamos ofertas. El INEI ofrece sistemas oficiales para consultar indicadores por distrito y el MTPE tiene el portal Empleos Perú. La interfaz incluye etiquetas para formularios, navegación por teclado y foco visible; todavía falta probarla con lectores de pantalla y usuarios.”
+### 1:30–2:15 — Demo de anunciante
 
-**2:40–3:00 — Diapositiva 5**
-“Chamby ya está publicado y el código está abierto para que el equipo pueda revisarlo y colaborar. El siguiente paso es validar fuentes locales de oportunidades, probar el flujo con usuarios y definir la verificación de empresas para el camino formal. Gracias.”
+“Ahora cambio a la cuenta de prueba del anunciante. Abro sus postulantes, reviso el distrito y entro al perfil. Desde aquí puedo abrir el chat y enviar un mensaje; el postulante lo recibe en la conversación. También se puede retirar la postulación y liberar el cupo del anuncio. Así conectamos la búsqueda con el primer contacto, usando el flujo funcional y no una maqueta.”
+
+### 2:15–2:40 — Impacto ODS
+
+“Chamby se alinea con el ODS 8, pero todavía no afirmamos que haya generado empleos. Para medir el impacto en VES registraremos oportunidades verificadas, postulaciones completadas y respuestas de anunciantes. El INEI ofrece fuentes oficiales de indicadores distritales para contextualizar el problema.”
+
+### 2:40–3:00 — Escalabilidad
+
+“Primero validaremos el flujo con personas de Villa El Salvador y mejoraremos con sus comentarios. Después podremos ampliar a otros distritos y habilitar empresas verificadas para publicar vacantes formales. El código y la demo ya están disponibles en GitHub y en la web. Gracias.”
+
+## Preparación antes de presentar
+
+- Asignar quién habla en cada tramo y cerrar el equipo antes de las 10:00 a. m.
+- Ensayar con cronómetro: 45 s + 90 s de demo + 45 s.
+- Preparar dos cuentas de prueba y una vacante **rotulada “DEMO — no es real”**; borrarla al terminar.
+- Probar conexión, inicio de sesión, audio/pantalla y el flujo completo.
+- No mostrar CV ni datos personales reales.
+- Si no hay datos verificados de VES, decirlo y no reemplazarlos por cifras inventadas.

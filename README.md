@@ -20,23 +20,38 @@ Chambly conecta a personas que buscan trabajo con oportunidades en Lima. La plat
 
 ## Flujo principal para la demostración
 
+La regla 80/20 pide demostrar **un solo flujo de principio a fin**, en vez de recorrer todas las funciones.
+
 1. Abrir la portada y escoger **Trabajo rápido**.
-2. Iniciar sesión o crear una cuenta de prueba.
-3. Guardar el distrito del perfil y completar la foto/CV si se dispone de archivos de prueba.
-4. Abrir una oportunidad y postularse.
-5. Ingresar con la cuenta del anunciante, revisar la postulación, abrir el perfil y enviar un mensaje.
-6. Volver a la portada y mostrar la ruta de **Trabajo formal**.
+2. Entrar con una cuenta de prueba y mostrar el perfil con distrito de Villa El Salvador.
+3. Como postulante, abrir una oportunidad claramente identificada como demostración y postularse.
+4. Cambiar a la cuenta de prueba del anunciante, revisar la postulación, abrir el perfil y enviar un mensaje.
+
+Antes de exponer, prepara dos cuentas de prueba y una publicación rotulada como **DEMO — no es una oferta real**. No presentes una publicación ficticia como vacante vigente. La ruta formal puede mencionarse brevemente, pero no forma parte del flujo principal de 90 segundos.
 
 Usa cuentas y archivos de prueba. No subas datos personales ni CV reales durante una presentación pública.
+
+## Reglas y criterios de la presentación
+
+- Cierre de cambios de equipo: **10:00 a. m.**
+- Regla 80/20: un flujo principal completo, probado y estable.
+- Demostración en vivo del producto; no depender de una plantilla, video o capturas como sustituto de la aplicación.
+- Pitch de 3 minutos: 45 s problema en VES y solución, 90 s demo y 45 s impacto ODS y escalabilidad.
+- Rúbrica: impacto social (ODS) 30 %, ejecución técnica 30 %, innovación 25 % y presentación 15 %.
+
+El proyecto tiene código propio en HTML, CSS, JavaScript y Python y está publicado en vivo. Si “código 100 % en vivo” significa programar frente al jurado y no solo ejecutar la aplicación, confirma esa interpretación con la organización: el código ya está desarrollado y no se debe afirmar que se escribió durante la presentación.
 
 ## Datos de Villa El Salvador (VES)
 
 La aplicación permite indicar **Villa El Salvador** como distrito para perfiles y anuncios, pero no importa vacantes de otros portales. La búsqueda de fuentes públicas encontró estos puntos de consulta:
 
 - [Sistemas de consulta del INEI](https://www.gob.pe/23456-sistemas-de-consultas-del-inei): enlaza SIRTOD, que ofrece indicadores demográficos, sociales y económicos a nivel distrital, entre otros niveles.
+- [Censos Nacionales 2017 — Redatam](https://www.gob.pe/24120-consulta-la-base-de-datos-de-los-censos-nacionales-2017): permite consultar y descargar tablas censales con desgloses geográficos. Sirve para contextualizar VES, no para contar vacantes actuales.
 - [Empleos Perú del MTPE](https://www.empleosperu.gob.pe/portal-mtpe/): portal público para consultar y postular a oportunidades laborales.
 
 **Transparencia:** a 23 de noviembre de 2026 no se identificó un conjunto abierto, verificable y reutilizable de vacantes vigentes específicamente para VES. Por eso no se copiaron ni inventaron anuncios. Las ofertas que aparecen en Chambly deben ser publicadas por sus anunciantes. Antes de afirmar un impacto local, se deben recopilar datos verificables y fechados, y citar su fuente.
+
+Para el pitch, presenta el problema local como una hipótesis del equipo hasta validarlo con entrevistas o datos fechados; no afirmes tasas ni resultados que no se hayan medido. Para sustentar el impacto, registra oportunidades verificadas en VES, postulaciones completadas, anunciantes que responden y colocaciones confirmadas. No reportes metas como resultados alcanzados.
 
 ## Accesibilidad
 
@@ -105,7 +120,7 @@ No incluyas `encuentralab.db`, CV, fotos de usuarios ni credenciales en commits.
 
 ## Roles sugeridos para el equipo
 
-Asigna los nombres del equipo antes de presentar; los roles siguientes son una propuesta, no asignaciones ya confirmadas.
+Completa los nombres y acuerda los roles antes de las 10:00 a. m.; la pauta indica que después de esa hora no se cambia el equipo. Los roles siguientes son una propuesta, no asignaciones ya confirmadas.
 
 | Rol | Responsabilidad |
 | --- | --- |
